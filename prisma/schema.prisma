@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  passwordHash String? @db.Text
+
+  roles  String?
+  member Boolean @default(false)
+
+  accounts Account[]
+  sessions Session[]
+
+  signUps SignUp[]
+
+  guestSignUpsAdded GuestSignUp[] @relation("GuestAddedBy")
+}
+
+model Schedule {
+  id         String    @id @default(cuid())
+  title      String
+  date       DateTime
+  active     Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  archivedAt DateTime?
+  limit      Int       @default(15)
+
+  signUps SignUp[]
+
+  guestSignUps GuestSignUp[]
+}
+
+model SignUp {
+  id         String   @id @default(cuid())
+  scheduleId String
+  userId     String
+  createdAt  DateTime @default(now())
+  position   Int      @default(0)
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, userId])
+  @@index([scheduleId, position])
+}
+
+model GuestSignUp {
+  id            String   @id @default(cuid())
+  scheduleId    String
+  guestName     String
+  addedByUserId String
+  createdAt     DateTime @default(now())
+  position      Int      @default(0)
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  addedBy  User     @relation("GuestAddedBy", fields: [addedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId, position])
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String? @db.Text
+  id_token           String? @db.Text
+  session_state      String?
+  oauth_token_secret String? @db.Text
+  oauth_token        String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

@@ -1,0 +1,142 @@
+"use client";
+
+import { signIn, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export function AuthButtons({ signedIn }: { signedIn: boolean }) {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const onLocalSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (res?.error) {
+        setError("Invalid email or password");
+        return;
+      }
+
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRegister = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const resp = await fetch("/api/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      if (!resp.ok) {
+        const data = (await resp.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        setError(data?.error ?? "Registration failed");
+        return;
+      }
+
+      await onLocalSignIn();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex w-full flex-col gap-6">
+      {signedIn ? (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+            onClick={() => signIn("google", { callbackUrl: "/" })}
+          >
+            Link Google
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800"
+            onClick={() => signOut({ callbackUrl: "/" })}
+          >
+            Sign out
+          </button>
+        </div>
+      ) : (
+        <div className="flex w-full flex-col gap-4">
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800"
+            onClick={() => signIn("google")}
+          >
+            Continue with Google
+          </button>
+
+          <div className="w-full rounded-2xl border border-zinc-200 p-4">
+            <div className="grid gap-3">
+              <input
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                placeholder="Name (optional)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                placeholder="Email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <input
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                placeholder="Password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+
+              {error ? (
+                <div className="text-sm text-red-600">{error}</div>
+              ) : null}
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                  disabled={loading}
+                  onClick={onLocalSignIn}
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                  disabled={loading}
+                  onClick={onRegister}
+                >
+                  Register
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
