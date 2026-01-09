@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { getServerSession } from "next-auth/next";
+import type { Prisma } from "@prisma/client";
 
 import { ActiveScheduleActions } from "@/app/_components/ActiveScheduleActions";
 import { AdminAddToSchedule } from "@/app/_components/AdminAddToSchedule";
@@ -10,7 +11,22 @@ import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
-type ActiveSchedule = Awaited<ReturnType<typeof prisma.schedule.findFirst>>;
+type ActiveSchedule = Prisma.ScheduleGetPayload<{
+  include: {
+    signUps: { include: { user: true } };
+    guestSignUps: {
+      include: {
+        addedBy: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+          };
+        };
+      };
+    };
+  };
+}> | null;
 type SignUpRow = NonNullable<ActiveSchedule>["signUps"][number];
 type GuestRow = NonNullable<ActiveSchedule>["guestSignUps"][number];
 

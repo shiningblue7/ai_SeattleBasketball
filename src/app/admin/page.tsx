@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth/next";
+import type { Prisma } from "@prisma/client";
 
 import { AdminDashboard } from "@/app/admin/_components/AdminDashboard";
 import { authOptions } from "@/auth";
@@ -52,7 +53,15 @@ export default async function AdminPage() {
   });
 
   type ScheduleRow = Awaited<ReturnType<typeof prisma.schedule.findMany>>[number];
-  type UserRow = Awaited<ReturnType<typeof prisma.user.findMany>>[number];
+  type UserRow = Prisma.UserGetPayload<{
+    select: {
+      id: true;
+      email: true;
+      name: true;
+      roles: true;
+      member: true;
+    };
+  }>;
 
   const activeSchedule: ScheduleRow | null =
     schedules.find((s: ScheduleRow) => s.active && !s.archivedAt) ?? null;
@@ -65,7 +74,9 @@ export default async function AdminPage() {
       })
     : [];
 
-  type SignUpRow = Awaited<ReturnType<typeof prisma.signUp.findMany>>[number];
+  type SignUpRow = Prisma.SignUpGetPayload<{
+    include: { user: { select: { email: true; name: true } } };
+  }>;
 
   const users = await prisma.user.findMany({
     orderBy: [{ createdAt: "desc" }],
