@@ -61,21 +61,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const [lastUser, lastGuest] = await prisma.$transaction([
-    prisma.signUp.findFirst({
-      where: { scheduleId },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    }),
-    prisma.guestSignUp.findFirst({
-      where: { scheduleId },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    }),
-  ]);
+  const last = await prisma.signUp.findFirst({
+    where: { scheduleId },
+    orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+    select: { position: true },
+  });
 
-  const nextPosition =
-    Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
+  const nextPosition = (last?.position ?? 0) + 1;
 
   await prisma.signUp.create({
     data: {
