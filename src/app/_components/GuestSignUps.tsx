@@ -7,6 +7,8 @@ type GuestRow = {
   id: string;
   guestName: string;
   position: number;
+  guestOfUserId: string | null;
+  guestOfLabel: string;
   addedByUserId: string;
   addedByLabel: string;
 };
@@ -128,7 +130,7 @@ export function GuestSignUps({
                     {g.guestName} (guest)
                   </div>
                   <div className="text-xs text-zinc-600">
-                    Added by {g.addedByLabel} · position {g.position}
+                    Guest of {g.guestOfLabel} · Added by {g.addedByLabel} · position {g.position}
                   </div>
                 </div>
                 <button

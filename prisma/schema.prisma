@@ -27,6 +27,8 @@ model User {
   signUps SignUp[]
 
   guestSignUpsAdded GuestSignUp[] @relation("GuestAddedBy")
+
+  guestSignUpsFor GuestSignUp[] @relation("GuestFor")
 }
 
 model Schedule {
@@ -71,14 +73,17 @@ model GuestSignUp {
   id            String   @id @default(cuid())
   scheduleId    String
   guestName     String
+  guestOfUserId String?
   addedByUserId String
   createdAt     DateTime @default(now())
   position      Int      @default(0)
 
   schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  guestOf  User?    @relation("GuestFor", fields: [guestOfUserId], references: [id], onDelete: Cascade)
   addedBy  User     @relation("GuestAddedBy", fields: [addedByUserId], references: [id], onDelete: Cascade)
 
   @@index([scheduleId, position])
+  @@index([scheduleId, guestOfUserId])
 }
 
 model Account {

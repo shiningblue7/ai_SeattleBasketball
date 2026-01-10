@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import type { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
@@ -16,11 +17,13 @@ export async function POST(req: Request) {
   const admin = isAdmin(session.user?.roles ?? null);
 
   const body = (await req.json().catch(() => null)) as
-    | { scheduleId?: string; guestName?: string }
+    | { scheduleId?: string; guestName?: string; guestOfUserId?: string }
     | null;
 
   const scheduleId = body?.scheduleId;
   const guestName = body?.guestName?.trim();
+  const guestOfUserIdRaw = body?.guestOfUserId;
+  const guestOfUserId = admin && guestOfUserIdRaw ? guestOfUserIdRaw : userId;
 
   if (!scheduleId || !guestName) {
     return NextResponse.json(
@@ -41,18 +44,16 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!admin) {
-    const signedUp = await prisma.signUp.findUnique({
-      where: { scheduleId_userId: { scheduleId, userId } },
-      select: { id: true },
-    });
+  const signedUp = await prisma.signUp.findUnique({
+    where: { scheduleId_userId: { scheduleId, userId: guestOfUserId } },
+    select: { id: true },
+  });
 
-    if (!signedUp) {
-      return NextResponse.json(
-        { error: "Sign up first to add a guest" },
-        { status: 403 }
-      );
-    }
+  if (!signedUp) {
+    return NextResponse.json(
+      { error: "User must be signed up to add a guest" },
+      { status: admin ? 400 : 403 }
+    );
   }
 
   const [lastUser, lastGuest] = await prisma.$transaction([
@@ -75,11 +76,12 @@ export async function POST(req: Request) {
     data: {
       scheduleId,
       guestName,
+      guestOfUserId,
       addedByUserId: userId,
       position: nextPosition,
     },
     select: { id: true },
-  });
+  } as Prisma.GuestSignUpCreateArgs);
 
   return NextResponse.json({ guest });
 }
@@ -107,7 +109,7 @@ export async function DELETE(req: Request) {
 
   const guest = await prisma.guestSignUp.findUnique({
     where: { id: guestSignUpId },
-    select: { id: true, addedByUserId: true },
+    select: { id: true, addedByUserId: true, guestOfUserId: true },
   });
 
   if (!guest) {
@@ -115,7 +117,7 @@ export async function DELETE(req: Request) {
   }
 
   const admin = isAdmin(session.user?.roles ?? null);
-  if (!admin && guest.addedByUserId !== userId) {
+  if (!admin && guest.addedByUserId !== userId && guest.guestOfUserId !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

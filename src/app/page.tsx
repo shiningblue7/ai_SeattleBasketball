@@ -17,6 +17,13 @@ type ActiveSchedule = Prisma.ScheduleGetPayload<{
     signUps: { include: { user: true } };
     guestSignUps: {
       include: {
+        guestOf: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+          };
+        };
         addedBy: {
           select: {
             id: true;
@@ -59,6 +66,13 @@ export default async function Home() {
       },
       guestSignUps: {
         include: {
+          guestOf: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
           addedBy: {
             select: {
               id: true,
@@ -100,6 +114,11 @@ export default async function Home() {
     return ` (${label}${note})`;
   };
 
+  const formatMemberSuffix = (s: SignUpRow): string => {
+    if (!admin) return "";
+    return s.user.member ? " (member)" : "";
+  };
+
   const items: LineItem[] = [
     ...signUps.map((s: SignUpRow) => ({
       kind: "user" as const,
@@ -108,6 +127,7 @@ export default async function Home() {
       createdAt: s.createdAt,
       label:
         (s.user.name ?? s.user.email ?? "User") +
+        formatMemberSuffix(s) +
         formatAttendanceSuffix(s),
     })),
     ...guestSignUps.map((g: GuestRow) => ({
@@ -116,7 +136,11 @@ export default async function Home() {
       position: g.position,
       createdAt: g.createdAt,
       label: `${g.guestName} (guest of ${
-        g.addedBy.name ?? g.addedBy.email ?? "unknown"
+        g.guestOf?.name ??
+        g.guestOf?.email ??
+        g.addedBy.name ??
+        g.addedBy.email ??
+        "unknown"
       })`,
     })),
   ].sort((a, b) => {
@@ -237,6 +261,13 @@ export default async function Home() {
               id: g.id,
               guestName: g.guestName,
               position: g.position,
+              guestOfUserId: g.guestOfUserId ?? null,
+              guestOfLabel:
+                g.guestOf?.name ??
+                g.guestOf?.email ??
+                g.addedBy.name ??
+                g.addedBy.email ??
+                "unknown",
               addedByUserId: g.addedByUserId,
               addedByLabel: g.addedBy.name ?? g.addedBy.email ?? "unknown",
             }))}

@@ -69,13 +69,13 @@ export default async function AdminPage() {
   const signUps = activeSchedule
     ? await prisma.signUp.findMany({
         where: { scheduleId: activeSchedule.id },
-        include: { user: { select: { email: true, name: true } } },
+        include: { user: { select: { email: true, name: true, member: true } } },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       })
     : [];
 
   type SignUpRow = Prisma.SignUpGetPayload<{
-    include: { user: { select: { email: true; name: true } } };
+    include: { user: { select: { email: true; name: true; member: true } } };
   }>;
 
   const users = await prisma.user.findMany({
@@ -130,7 +130,7 @@ export default async function AdminPage() {
             position: s.position,
             attendanceStatus: s.attendanceStatus,
             attendanceNote: s.attendanceNote,
-            user: { email: s.user.email, name: s.user.name },
+            user: { email: s.user.email, name: s.user.name, member: s.user.member },
           }))}
           users={users.map((u: UserRow) => ({
             id: u.id,

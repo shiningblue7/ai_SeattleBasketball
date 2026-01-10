@@ -40,7 +40,7 @@ type SignUpRow = {
   position: number;
   attendanceStatus: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
   attendanceNote: string | null;
-  user: { email: string | null; name: string | null };
+  user: { email: string | null; name: string | null; member: boolean };
 };
 
 type UserRow = {
@@ -84,9 +84,43 @@ export function AdminDashboard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [guestOfUserId, setGuestOfUserId] = useState<string>("");
+  const [guestName, setGuestName] = useState<string>("");
+
   const activeScheduleId = activeSchedule?.id ?? null;
 
   const refresh = () => router.refresh();
+
+  const addGuestForUser = async () => {
+    if (!activeScheduleId) return;
+    if (!guestOfUserId || !guestName.trim()) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const resp = await fetch("/api/guests", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          scheduleId: activeScheduleId,
+          guestName,
+          guestOfUserId,
+        }),
+      });
+
+      if (!resp.ok) {
+        const data = (await resp.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        setError(data?.error ?? "Failed to add guest");
+        return;
+      }
+
+      setGuestName("");
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     setLimitEdits((prev) => {
@@ -642,7 +676,7 @@ export function AdminDashboard({
                   >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-zinc-950">
-                        {s.user.name ?? s.user.email ?? "User"}
+                        {s.user.name ?? s.user.email ?? "User"}{s.user.member ? " (member)" : ""}
                       </div>
                       <div className="text-xs text-zinc-600">position {s.position}</div>
                     </div>
@@ -686,6 +720,49 @@ export function AdminDashboard({
         ) : (
           <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
         )}
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 p-6">
+        <div className="text-lg font-semibold text-zinc-950">Add guest</div>
+        {activeScheduleId ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <select
+              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+              value={guestOfUserId}
+              onChange={(e) => setGuestOfUserId(e.target.value)}
+            >
+              <option value="">Select a signed-up user…</option>
+              {signUps
+                .slice()
+                .sort((a, b) => a.position - b.position)
+                .map((s) => (
+                  <option key={s.userId} value={s.userId}>
+                    {s.user.name ?? s.user.email ?? "User"}
+                  </option>
+                ))}
+            </select>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                placeholder="Guest name"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+              />
+              <button
+                type="button"
+                className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                disabled={busy || !guestOfUserId || !guestName.trim()}
+                onClick={addGuestForUser}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
+        )}
+        {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
       </div>
 
       <div className="rounded-2xl border border-zinc-200 p-6">
