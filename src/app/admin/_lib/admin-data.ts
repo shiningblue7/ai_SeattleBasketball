@@ -18,7 +18,7 @@ type UserRow = Prisma.UserGetPayload<{
   };
 }>;
 
-export async function getAdminData() {
+export async function getAdminData(opts?: { signupsScheduleId?: string }) {
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
 
@@ -41,6 +41,17 @@ export async function getAdminData() {
   const activeSchedule: ScheduleRow | null =
     schedules.find((s: ScheduleRow) => s.active && !s.archivedAt) ?? null;
 
+  const defaultNonArchivedSchedule: ScheduleRow | null =
+    schedules.find((s: ScheduleRow) => !s.archivedAt) ?? null;
+
+  const signupsSchedule: ScheduleRow | null =
+    (opts?.signupsScheduleId
+      ? schedules.find((s) => s.id === opts.signupsScheduleId && !s.archivedAt) ?? null
+      : null) ??
+    activeSchedule ??
+    defaultNonArchivedSchedule ??
+    null;
+
   const fmtHHMM = (d: Date) =>
     d.toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -48,14 +59,14 @@ export async function getAdminData() {
       hour12: false,
     });
 
-  const defaultArriveAt = activeSchedule ? fmtHHMM(activeSchedule.date) : "";
-  const defaultLeaveAt = activeSchedule
-    ? fmtHHMM(new Date(activeSchedule.date.getTime() + 2 * 60 * 60 * 1000))
+  const defaultArriveAt = signupsSchedule ? fmtHHMM(signupsSchedule.date) : "";
+  const defaultLeaveAt = signupsSchedule
+    ? fmtHHMM(new Date(signupsSchedule.date.getTime() + 2 * 60 * 60 * 1000))
     : "";
 
-  const signUps = activeSchedule
+  const signUps = signupsSchedule
     ? await prisma.signUp.findMany({
-        where: { scheduleId: activeSchedule.id },
+        where: { scheduleId: signupsSchedule.id },
         include: { user: { select: { email: true, name: true, member: true } } },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       })
@@ -97,6 +108,16 @@ export async function getAdminData() {
           active: activeSchedule.active,
           archivedAt: activeSchedule.archivedAt ? activeSchedule.archivedAt.toISOString() : null,
           limit: activeSchedule.limit,
+        }
+      : null,
+    signupsSchedule: signupsSchedule
+      ? {
+          id: signupsSchedule.id,
+          title: signupsSchedule.title,
+          date: signupsSchedule.date.toISOString(),
+          active: signupsSchedule.active,
+          archivedAt: signupsSchedule.archivedAt ? signupsSchedule.archivedAt.toISOString() : null,
+          limit: signupsSchedule.limit,
         }
       : null,
     defaultArriveAt,

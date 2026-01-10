@@ -51,6 +51,7 @@ export default async function AdminUsersPage() {
           mode="users"
           schedules={data.schedules}
           activeSchedule={data.activeSchedule}
+          signupsSchedule={data.signupsSchedule}
           defaultArriveAt={data.defaultArriveAt}
           defaultLeaveAt={data.defaultLeaveAt}
           signUps={data.signUps}

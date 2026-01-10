@@ -107,7 +107,7 @@ export async function POST(req: Request) {
 
   const createdFirst = createdSchedules[0] ?? null;
 
-  if (createdFirst && firstActive) {
+  if (createdSchedules.length) {
     const members = (await prisma.user.findMany({
       where: { member: true },
       orderBy: [{ roles: "asc" }, { createdAt: "asc" }],
@@ -115,14 +115,16 @@ export async function POST(req: Request) {
     })) as Array<{ id: string }>;
 
     if (members.length) {
-      await prisma.signUp.createMany({
-        data: members.map((m, idx) => ({
-          scheduleId: createdFirst.id,
-          userId: m.id,
-          position: idx + 1,
-        })),
-        skipDuplicates: true,
-      });
+      for (const sched of createdSchedules) {
+        await prisma.signUp.createMany({
+          data: members.map((m, idx) => ({
+            scheduleId: sched.id,
+            userId: m.id,
+            position: idx + 1,
+          })),
+          skipDuplicates: true,
+        });
+      }
     }
   }
 

@@ -6,7 +6,11 @@ import { getAdminData } from "@/app/admin/_lib/admin-data";
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
 
-export default async function AdminSignupsPage() {
+export default async function AdminSignupsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scheduleId?: string }>;
+}) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -31,7 +35,9 @@ export default async function AdminSignupsPage() {
     );
   }
 
-  const data = await getAdminData();
+  const sp = await searchParams;
+  const scheduleId = typeof sp?.scheduleId === "string" ? sp.scheduleId : undefined;
+  const data = await getAdminData({ signupsScheduleId: scheduleId });
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
@@ -51,6 +57,7 @@ export default async function AdminSignupsPage() {
           mode="signups"
           schedules={data.schedules}
           activeSchedule={data.activeSchedule}
+          signupsSchedule={data.signupsSchedule}
           defaultArriveAt={data.defaultArriveAt}
           defaultLeaveAt={data.defaultLeaveAt}
           signUps={data.signUps}

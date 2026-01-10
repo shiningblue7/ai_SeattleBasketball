@@ -23,6 +23,23 @@ function formatScheduleDateLong(iso: string) {
   }).format(d);
 }
 
+function nextWednesdayAt7pmLocal(now: Date = new Date()) {
+  const targetDow = 3;
+  const candidate = new Date(now);
+  candidate.setHours(19, 0, 0, 0);
+
+  const day = candidate.getDay();
+  const daysUntil = (targetDow - day + 7) % 7;
+  candidate.setDate(candidate.getDate() + daysUntil);
+
+  if (daysUntil === 0 && now.getTime() > candidate.getTime()) {
+    candidate.setDate(candidate.getDate() + 7);
+  }
+
+  const tzOffsetMs = candidate.getTimezoneOffset() * 60_000;
+  return new Date(candidate.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+}
+
 const SCHEDULES_PAGE_SIZE = 4;
 
 type ScheduleRow = {
@@ -73,6 +90,7 @@ export function AdminDashboard({
   mode,
   schedules,
   activeSchedule,
+  signupsSchedule,
   defaultArriveAt,
   defaultLeaveAt,
   signUps,
@@ -81,6 +99,7 @@ export function AdminDashboard({
   mode: "schedules" | "signups" | "users";
   schedules: ScheduleRow[];
   activeSchedule: ScheduleRow | null;
+  signupsSchedule?: ScheduleRow | null;
   defaultArriveAt: string;
   defaultLeaveAt: string;
   signUps: SignUpRow[];
@@ -88,10 +107,10 @@ export function AdminDashboard({
 }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(() => nextWednesdayAt7pmLocal());
   const [limit, setLimit] = useState(15);
   const [active, setActive] = useState(true);
-  const [repeatWeeks, setRepeatWeeks] = useState(1);
+  const [repeatWeeksInput, setRepeatWeeksInput] = useState("1");
   const [limitEdits, setLimitEdits] = useState<Record<string, number>>({});
   const [titleEdits, setTitleEdits] = useState<Record<string, string>>({});
   const [dateEdits, setDateEdits] = useState<Record<string, string>>({});
@@ -104,7 +123,21 @@ export function AdminDashboard({
   const [guestOfUserId, setGuestOfUserId] = useState<string>("");
   const [guestName, setGuestName] = useState<string>("");
 
-  const activeScheduleId = activeSchedule?.id ?? null;
+  const selectedSignupsSchedule = signupsSchedule ?? activeSchedule;
+  const activeScheduleId = selectedSignupsSchedule?.id ?? null;
+
+  const signupsScheduleOptions = schedules
+    .slice()
+    .filter((s) => !s.archivedAt)
+    .sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+
+  const repeatWeeks = Math.max(
+    1,
+    Math.min(52, Number.parseInt(repeatWeeksInput || "1", 10) || 1)
+  );
 
   const refresh = () => router.refresh();
 
@@ -254,7 +287,7 @@ export function AdminDashboard({
       setDate("");
       setLimit(15);
       setActive(true);
-      setRepeatWeeks(1);
+      setRepeatWeeksInput("1");
       refresh();
     } finally {
       setBusy(false);
@@ -393,10 +426,9 @@ export function AdminDashboard({
                 type="number"
                 min={1}
                 max={52}
-                value={repeatWeeks}
-                onChange={(e) =>
-                  setRepeatWeeks(Math.max(1, Math.min(52, Number(e.target.value))))
-                }
+                value={repeatWeeksInput}
+                onChange={(e) => setRepeatWeeksInput(e.target.value)}
+                onBlur={() => setRepeatWeeksInput(String(repeatWeeks))}
               />
             </div>
 
@@ -688,11 +720,35 @@ export function AdminDashboard({
 
       {mode === "signups" ? (
         <div className="rounded-2xl border border-zinc-200 p-6">
+          <div className="text-lg font-semibold text-zinc-950">Schedule</div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <select
+              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm"
+              value={selectedSignupsSchedule?.id ?? ""}
+              onChange={(e) => {
+                const nextId = e.target.value;
+                const url = nextId ? `/admin/signups?scheduleId=${encodeURIComponent(nextId)}` : "/admin/signups";
+                router.push(url);
+              }}
+            >
+              {signupsScheduleOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.active ? "(Active) " : ""}
+                  {s.title} · {formatScheduleDateLong(s.date)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      ) : null}
+
+      {mode === "signups" ? (
+        <div className="rounded-2xl border border-zinc-200 p-6">
           <div className="text-lg font-semibold text-zinc-950">Active signups</div>
-          {activeSchedule ? (
+          {selectedSignupsSchedule ? (
             <>
               <div className="mt-1 text-sm text-zinc-600">
-                {activeSchedule.title} · {formatScheduleDateLong(activeSchedule.date)} · Limit {activeSchedule.limit}
+                {selectedSignupsSchedule.title} · {formatScheduleDateLong(selectedSignupsSchedule.date)} · Limit {selectedSignupsSchedule.limit}
               </div>
               <div className="mt-4 grid gap-2">
                 {signUps
