@@ -7,6 +7,7 @@ import { ActiveScheduleActions } from "@/app/_components/ActiveScheduleActions";
 import { AdminAddToSchedule } from "@/app/_components/AdminAddToSchedule";
 import { AuthButtons } from "@/app/_components/AuthButtons";
 import { GuestSignUps } from "@/app/_components/GuestSignUps";
+import { SignupAvailability } from "@/app/_components/SignupAvailability";
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -81,13 +82,33 @@ export default async function Home() {
 
   const admin = isAdmin(session?.user?.roles ?? null);
 
+  const currentUserSignup = userId
+    ? signUps.find((s: SignUpRow) => s.userId === userId) ?? null
+    : null;
+
+  const formatAttendanceSuffix = (
+    s: SignUpRow
+  ): string => {
+    if (s.attendanceStatus === "FULL") return "";
+    const label =
+      s.attendanceStatus === "LATE"
+        ? "late"
+        : s.attendanceStatus === "LEAVE_EARLY"
+          ? "leave early"
+          : "partial";
+    const note = s.attendanceNote?.trim() ? `: ${s.attendanceNote.trim()}` : "";
+    return ` (${label}${note})`;
+  };
+
   const items: LineItem[] = [
     ...signUps.map((s: SignUpRow) => ({
       kind: "user" as const,
       id: s.id,
       position: s.position,
       createdAt: s.createdAt,
-      label: s.user.name ?? s.user.email ?? "User",
+      label:
+        (s.user.name ?? s.user.email ?? "User") +
+        formatAttendanceSuffix(s),
     })),
     ...guestSignUps.map((g: GuestRow) => ({
       kind: "guest" as const,
@@ -133,38 +154,6 @@ export default async function Home() {
           </p>
         </div>
 
-        {admin && activeSchedule ? (
-          <AdminAddToSchedule
-            scheduleId={activeSchedule.id}
-            signedUpUserIds={signUps.map((s: SignUpRow) => s.userId)}
-            currentSignUps={signUps
-              .slice()
-              .sort((a, b) => a.position - b.position)
-              .map((s: SignUpRow) => ({
-                id: s.id,
-                userId: s.userId,
-                label: s.user.name ?? s.user.email ?? "User",
-                position: s.position,
-              }))}
-          />
-        ) : null}
-
-        {activeSchedule ? (
-          <GuestSignUps
-            scheduleId={activeSchedule.id}
-            signedIn={Boolean(session?.user)}
-            isAdmin={admin}
-            currentUserId={userId ?? null}
-            guests={guestSignUps.map((g: GuestRow) => ({
-              id: g.id,
-              guestName: g.guestName,
-              position: g.position,
-              addedByUserId: g.addedByUserId,
-              addedByLabel: g.addedBy.name ?? g.addedBy.email ?? "unknown",
-            }))}
-          />
-        ) : null}
-
         <div className="w-full rounded-2xl border border-zinc-200 p-6">
           <div className="flex flex-col gap-2">
             <div className="text-base font-semibold text-zinc-950">
@@ -206,10 +195,53 @@ export default async function Home() {
                   signedIn={Boolean(session?.user)}
                   alreadySignedUp={alreadySignedUp}
                 />
+
+                {alreadySignedUp && currentUserSignup ? (
+                  <SignupAvailability
+                    scheduleId={activeSchedule.id}
+                    initialStatus={currentUserSignup.attendanceStatus}
+                    initialNote={currentUserSignup.attendanceNote}
+                  />
+                ) : null}
               </div>
             </div>
           ) : null}
         </div>
+
+        {admin && activeSchedule ? (
+          <AdminAddToSchedule
+            scheduleId={activeSchedule.id}
+            signedUpUserIds={signUps.map((s: SignUpRow) => s.userId)}
+            currentSignUps={signUps
+              .slice()
+              .sort((a, b) => a.position - b.position)
+              .map((s: SignUpRow) => ({
+                id: s.id,
+                userId: s.userId,
+                label: s.user.name ?? s.user.email ?? "User",
+                position: s.position,
+                attendanceStatus: s.attendanceStatus,
+                attendanceNote: s.attendanceNote,
+              }))}
+          />
+        ) : null}
+
+        {activeSchedule && alreadySignedUp ? (
+          <GuestSignUps
+            scheduleId={activeSchedule.id}
+            signedIn={Boolean(session?.user)}
+            alreadySignedUp={alreadySignedUp}
+            isAdmin={admin}
+            currentUserId={userId ?? null}
+            guests={guestSignUps.map((g: GuestRow) => ({
+              id: g.id,
+              guestName: g.guestName,
+              position: g.position,
+              addedByUserId: g.addedByUserId,
+              addedByLabel: g.addedBy.name ?? g.addedBy.email ?? "unknown",
+            }))}
+          />
+        ) : null}
 
         <AuthButtons signedIn={Boolean(session?.user)} />
       </main>

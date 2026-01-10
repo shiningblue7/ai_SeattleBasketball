@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { AdminSignupAvailability } from "@/app/_components/AdminSignupAvailability";
+
 type UserRow = {
   id: string;
   email: string | null;
@@ -16,6 +18,8 @@ type CurrentSignUp = {
   userId: string;
   label: string;
   position: number;
+  attendanceStatus: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
+  attendanceNote: string | null;
 };
 
 export function AdminAddToSchedule({
@@ -133,51 +137,55 @@ export function AdminAddToSchedule({
 
   return (
     <div className="w-full rounded-2xl border border-zinc-200 p-6">
-      <div className="text-base font-semibold text-zinc-950">
-        Admin: Add user to schedule
-      </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <select
-          className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
-          value={selectedUserId}
-          onChange={(e) => setSelectedUserId(e.target.value)}
-        >
-          <option value="">Select a user…</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {(u.name || u.email || u.id) + (u.member ? " (member)" : "")}
-            </option>
-          ))}
-        </select>
+      <div className="text-base font-semibold text-zinc-950">Admin</div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-            disabled={busy || !selectedUserId || alreadyInSchedule}
-            onClick={() => mutate("join")}
+      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="text-sm font-medium text-zinc-950">Add user to schedule</div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <select
+            className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+            value={selectedUserId}
+            onChange={(e) => setSelectedUserId(e.target.value)}
           >
-            Add
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-            disabled={busy || !selectedUserId || !alreadyInSchedule}
-            onClick={() => mutate("leave")}
-          >
-            Remove
-          </button>
+            <option value="">Select a user…</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {(u.name || u.email || u.id) + (u.member ? " (member)" : "")}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+              disabled={busy || !selectedUserId || alreadyInSchedule}
+              onClick={() => mutate("join")}
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+              disabled={busy || !selectedUserId || !alreadyInSchedule}
+              onClick={() => mutate("leave")}
+            >
+              Remove
+            </button>
+          </div>
         </div>
+
+        {selectedUser ? (
+          <div className="mt-3 text-xs text-zinc-600">
+            Selected: {selectedUser.name ?? selectedUser.email ?? selectedUser.id}
+          </div>
+        ) : null}
       </div>
 
-      {selectedUser ? (
-        <div className="mt-3 text-xs text-zinc-600">
-          Selected: {selectedUser.name ?? selectedUser.email ?? selectedUser.id}
-        </div>
-      ) : null}
-
-      <div className="mt-5">
-        <div className="text-sm font-medium text-zinc-950">Current signups</div>
+      <details className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+        <summary className="cursor-pointer select-none text-sm font-semibold text-indigo-950">
+          Reorder
+        </summary>
         <div className="mt-3 grid gap-2">
           {currentSignUps
             .slice()
@@ -189,9 +197,16 @@ export function AdminAddToSchedule({
               >
                 <div className="min-w-0 truncate text-sm text-zinc-900">{s.label}</div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+                  <div className="w-full sm:w-56">
+                    <AdminSignupAvailability
+                      signUpId={s.id}
+                      initialStatus={s.attendanceStatus}
+                      initialNote={s.attendanceNote}
+                    />
+                  </div>
                   <button
                     type="button"
-                    className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 sm:w-auto"
+                    className="inline-flex h-9 w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 sm:w-auto"
                     disabled={busy}
                     onClick={() => removeExisting(s.userId)}
                   >
@@ -215,9 +230,9 @@ export function AdminAddToSchedule({
                   </button>
                 </div>
               </div>
-          ))}
+            ))}
         </div>
-      </div>
+      </details>
 
       {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
     </div>

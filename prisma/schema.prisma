@@ -50,11 +50,21 @@ model SignUp {
   createdAt  DateTime @default(now())
   position   Int      @default(0)
 
+  attendanceStatus AttendanceStatus @default(FULL)
+  attendanceNote   String?
+
   schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([scheduleId, userId])
   @@index([scheduleId, position])
+}
+
+enum AttendanceStatus {
+  FULL
+  LATE
+  LEAVE_EARLY
+  PARTIAL
 }
 
 model GuestSignUp {

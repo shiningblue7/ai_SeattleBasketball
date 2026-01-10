@@ -13,6 +13,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const admin = isAdmin(session.user?.roles ?? null);
+
   const body = (await req.json().catch(() => null)) as
     | { scheduleId?: string; guestName?: string }
     | null;
@@ -37,6 +39,20 @@ export async function POST(req: Request) {
       { error: "Schedule not found or not active" },
       { status: 400 }
     );
+  }
+
+  if (!admin) {
+    const signedUp = await prisma.signUp.findUnique({
+      where: { scheduleId_userId: { scheduleId, userId } },
+      select: { id: true },
+    });
+
+    if (!signedUp) {
+      return NextResponse.json(
+        { error: "Sign up first to add a guest" },
+        { status: 403 }
+      );
+    }
   }
 
   const [lastUser, lastGuest] = await prisma.$transaction([

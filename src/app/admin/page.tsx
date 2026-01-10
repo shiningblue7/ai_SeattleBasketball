@@ -128,6 +128,8 @@ export default async function AdminPage() {
             id: s.id,
             userId: s.userId,
             position: s.position,
+            attendanceStatus: s.attendanceStatus,
+            attendanceNote: s.attendanceNote,
             user: { email: s.user.email, name: s.user.name },
           }))}
           users={users.map((u: UserRow) => ({

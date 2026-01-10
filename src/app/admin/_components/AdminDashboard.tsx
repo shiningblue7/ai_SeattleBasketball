@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AdminSignupAvailability } from "@/app/_components/AdminSignupAvailability";
+
 function toDatetimeLocalValue(iso: string) {
   const d = new Date(iso);
   const tzOffsetMs = d.getTimezoneOffset() * 60_000;
@@ -36,6 +38,8 @@ type SignUpRow = {
   id: string;
   userId: string;
   position: number;
+  attendanceStatus: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
+  attendanceNote: string | null;
   user: { email: string | null; name: string | null };
 };
 
@@ -642,7 +646,14 @@ export function AdminDashboard({
                       </div>
                       <div className="text-xs text-zinc-600">position {s.position}</div>
                     </div>
-                    <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+                      <div className="w-full sm:w-56">
+                        <AdminSignupAvailability
+                          signUpId={s.id}
+                          initialStatus={s.attendanceStatus}
+                          initialNote={s.attendanceNote}
+                        />
+                      </div>
                       <button
                         type="button"
                         className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"

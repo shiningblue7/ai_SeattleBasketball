@@ -14,12 +14,14 @@ type GuestRow = {
 export function GuestSignUps({
   scheduleId,
   signedIn,
+  alreadySignedUp,
   isAdmin,
   currentUserId,
   guests,
 }: {
   scheduleId: string;
   signedIn: boolean;
+  alreadySignedUp: boolean;
   isAdmin: boolean;
   currentUserId: string | null;
   guests: GuestRow[];
@@ -83,7 +85,7 @@ export function GuestSignUps({
     <div className="w-full rounded-2xl border border-zinc-200 p-6">
       <div className="text-base font-semibold text-zinc-950">Guests</div>
 
-      {signedIn ? (
+      {signedIn && alreadySignedUp ? (
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input
             className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
@@ -99,6 +101,10 @@ export function GuestSignUps({
           >
             Add guest
           </button>
+        </div>
+      ) : signedIn ? (
+        <div className="mt-2 text-sm text-zinc-600">
+          Sign up first to add a guest.
         </div>
       ) : (
         <div className="mt-2 text-sm text-zinc-600">Sign in to add a guest.</div>
