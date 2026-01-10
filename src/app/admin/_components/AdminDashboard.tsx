@@ -70,6 +70,7 @@ function isAdmin(roles: string | null) {
 }
 
 export function AdminDashboard({
+  mode,
   schedules,
   activeSchedule,
   defaultArriveAt,
@@ -77,6 +78,7 @@ export function AdminDashboard({
   signUps,
   users,
 }: {
+  mode: "schedules" | "signups" | "users";
   schedules: ScheduleRow[];
   activeSchedule: ScheduleRow | null;
   defaultArriveAt: string;
@@ -338,504 +340,520 @@ export function AdminDashboard({
 
   return (
     <div className="flex w-full flex-col gap-8">
-      <div className="rounded-2xl border border-zinc-200 p-6">
-        <div className="text-lg font-semibold text-zinc-950">Create schedule</div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="schedule-title" className="text-xs font-medium text-zinc-700">
-              Title
-            </label>
-            <input
-              id="schedule-title"
-              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="schedule-datetime" className="text-xs font-medium text-zinc-700">
-              Date & time
-            </label>
-            <input
-              id="schedule-datetime"
-              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
-              type="datetime-local"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="schedule-limit" className="text-xs font-medium text-zinc-700">
-              Player limit
-            </label>
-            <input
-              id="schedule-limit"
-              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
-              type="number"
-              min={1}
-              value={limit}
-              onChange={(e) => setLimit(Number(e.target.value))}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="schedule-repeat-weeks" className="text-xs font-medium text-zinc-700">
-              Weeks to create
-            </label>
-            <input
-              id="schedule-repeat-weeks"
-              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
-              type="number"
-              min={1}
-              max={52}
-              value={repeatWeeks}
-              onChange={(e) =>
-                setRepeatWeeks(Math.max(1, Math.min(52, Number(e.target.value))))
-              }
-            />
-          </div>
-
-          <div className="flex flex-col gap-1 sm:col-span-2">
-            <div className="text-xs font-medium text-zinc-700">Active</div>
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
+      {mode === "schedules" ? (
+        <div className="rounded-2xl border border-zinc-200 p-6">
+          <div className="text-lg font-semibold text-zinc-950">Create schedule</div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="schedule-title" className="text-xs font-medium text-zinc-700">
+                Title
+              </label>
               <input
-                type="checkbox"
-                checked={active}
-                onChange={(e) => setActive(e.target.checked)}
+                id="schedule-title"
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
-              Make the first created schedule active
-            </label>
-          </div>
-          <div className="text-xs text-zinc-600 sm:col-span-2">
-            Create weekly schedules ahead: sets the first one active (if checked) and creates the rest inactive.
-          </div>
-        </div>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-            disabled={busy}
-            onClick={createSchedule}
-          >
-            Create
-          </button>
-          {error ? <div className="text-sm text-red-600">{error}</div> : null}
-        </div>
-      </div>
+            </div>
 
-      <div className="rounded-2xl border border-zinc-200 p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-lg font-semibold text-zinc-950">Schedules</div>
-          <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="schedule-datetime" className="text-xs font-medium text-zinc-700">
+                Date & time
+              </label>
+              <input
+                id="schedule-datetime"
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                type="datetime-local"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="schedule-limit" className="text-xs font-medium text-zinc-700">
+                Player limit
+              </label>
+              <input
+                id="schedule-limit"
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                type="number"
+                min={1}
+                value={limit}
+                onChange={(e) => setLimit(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="schedule-repeat-weeks" className="text-xs font-medium text-zinc-700">
+                Weeks to create
+              </label>
+              <input
+                id="schedule-repeat-weeks"
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                type="number"
+                min={1}
+                max={52}
+                value={repeatWeeks}
+                onChange={(e) =>
+                  setRepeatWeeks(Math.max(1, Math.min(52, Number(e.target.value))))
+                }
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <div className="text-xs font-medium text-zinc-700">Active</div>
+              <label className="flex items-center gap-2 text-sm text-zinc-700">
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={(e) => setActive(e.target.checked)}
+                />
+                Make the first created schedule active
+              </label>
+            </div>
+            <div className="text-xs text-zinc-600 sm:col-span-2">
+              Create weekly schedules ahead: sets the first one active (if checked) and creates the rest inactive.
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
-              className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
               disabled={busy}
-              onClick={() => {
-                setShowArchived((v) => !v);
-                setSchedulePage(0);
-                setEditingScheduleId(null);
-              }}
+              onClick={createSchedule}
             >
-              {showArchived ? "Hide archived" : "Show archived"}
+              Create
             </button>
+            {error ? <div className="text-sm text-red-600">{error}</div> : null}
           </div>
-      </div>
-      <div className="mt-4 grid gap-2">
+        </div>
+      ) : null}
+
+      {mode === "schedules" ? (
+        <div className="rounded-2xl border border-zinc-200 p-6">
           <div className="flex items-center justify-between gap-3">
-            <div className="inline-flex items-center rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">
-              Page {schedulePageClamped + 1} of {totalSchedulePages}
-            </div>
+            <div className="text-lg font-semibold text-zinc-950">Schedules</div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-500 disabled:shadow-none"
-                disabled={busy || schedulePageClamped <= 0}
-                onClick={() => setSchedulePage((p) => Math.max(0, p - 1))}
+                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                disabled={busy}
+                onClick={() => {
+                  setShowArchived((v) => !v);
+                  setSchedulePage(0);
+                  setEditingScheduleId(null);
+                }}
               >
-                Prev
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-500 disabled:shadow-none"
-                disabled={busy || schedulePageClamped >= totalSchedulePages - 1}
-                onClick={() => setSchedulePage((p) => Math.min(totalSchedulePages - 1, p + 1))}
-              >
-                Next
+                {showArchived ? "Hide archived" : "Show archived"}
               </button>
             </div>
           </div>
 
-          {schedulePageItems.map((s) => {
-            const isEditing = editingScheduleId === s.id;
-            const isArchived = Boolean(s.archivedAt);
-            const editsDisabled = busy || isArchived || !isEditing;
+          <div className="mt-4 grid gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="inline-flex items-center rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">
+                Page {schedulePageClamped + 1} of {totalSchedulePages}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-500 disabled:shadow-none"
+                  disabled={busy || schedulePageClamped <= 0}
+                  onClick={() => setSchedulePage((p) => Math.max(0, p - 1))}
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-500 disabled:shadow-none"
+                  disabled={busy || schedulePageClamped >= totalSchedulePages - 1}
+                  onClick={() =>
+                    setSchedulePage((p) => Math.min(totalSchedulePages - 1, p + 1))
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
 
-            return (
-              <div
-                key={s.id}
-                className={`flex flex-col gap-1 rounded-xl border p-3 ${
-                  s.archivedAt
-                    ? "border-zinc-200 bg-zinc-50"
-                    : s.active
-                      ? "border-emerald-200 bg-emerald-50"
-                      : "border-zinc-100 bg-white"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 flex-col gap-2">
-                    {isEditing ? (
-                      <>
-                        <div className="flex flex-col gap-1">
-                          <label
-                            htmlFor={`schedule-title-${s.id}`}
-                            className="text-[11px] font-medium text-zinc-700"
-                          >
-                            Title
-                          </label>
-                          <input
-                            id={`schedule-title-${s.id}`}
-                            className="h-9 w-full min-w-[220px] rounded-xl border border-zinc-300 bg-white px-3 text-sm"
-                            value={titleEdits[s.id] ?? s.title}
-                            disabled={editsDisabled}
-                            onChange={(e) =>
-                              setTitleEdits((prev) => ({
-                                ...prev,
-                                [s.id]: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
+            {schedulePageItems.map((s) => {
+              const isEditing = editingScheduleId === s.id;
+              const isArchived = Boolean(s.archivedAt);
+              const editsDisabled = busy || isArchived || !isEditing;
 
-                        <div className="flex flex-col gap-1">
-                          <label
-                            htmlFor={`schedule-date-${s.id}`}
-                            className="text-[11px] font-medium text-zinc-700"
-                          >
-                            Date & time
-                          </label>
-                          <input
-                            id={`schedule-date-${s.id}`}
-                            className="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm"
-                            type="datetime-local"
-                            value={dateEdits[s.id] ?? toDatetimeLocalValue(s.date)}
-                            disabled={editsDisabled}
-                            onChange={(e) =>
-                              setDateEdits((prev) => ({
-                                ...prev,
-                                [s.id]: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="truncate text-sm font-semibold text-zinc-950">
-                          {s.title}
-                        </div>
-                        <div className="text-sm text-zinc-600">
-                          {formatScheduleDateLong(s.date)}
-                        </div>
-                        <div className="text-xs text-zinc-600">Limit {s.limit}</div>
-                      </>
-                    )}
-                  </div>
+              return (
+                <div
+                  key={s.id}
+                  className={`flex flex-col gap-1 rounded-xl border p-3 ${
+                    s.archivedAt
+                      ? "border-zinc-200 bg-zinc-50"
+                      : s.active
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-zinc-100 bg-white"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-col gap-2">
+                      {isEditing ? (
+                        <>
+                          <div className="flex flex-col gap-1">
+                            <label
+                              htmlFor={`schedule-title-${s.id}`}
+                              className="text-[11px] font-medium text-zinc-700"
+                            >
+                              Title
+                            </label>
+                            <input
+                              id={`schedule-title-${s.id}`}
+                              className="h-9 w-full min-w-[220px] rounded-xl border border-zinc-300 bg-white px-3 text-sm"
+                              value={titleEdits[s.id] ?? s.title}
+                              disabled={editsDisabled}
+                              onChange={(e) =>
+                                setTitleEdits((prev) => ({
+                                  ...prev,
+                                  [s.id]: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
 
-                  {s.archivedAt ? (
-                    <div className="mt-5 inline-flex shrink-0 items-center rounded-full bg-zinc-600 px-2.5 py-1 text-[11px] font-semibold text-white">
-                      Archived
+                          <div className="flex flex-col gap-1">
+                            <label
+                              htmlFor={`schedule-date-${s.id}`}
+                              className="text-[11px] font-medium text-zinc-700"
+                            >
+                              Date & time
+                            </label>
+                            <input
+                              id={`schedule-date-${s.id}`}
+                              className="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm"
+                              type="datetime-local"
+                              value={dateEdits[s.id] ?? toDatetimeLocalValue(s.date)}
+                              disabled={editsDisabled}
+                              onChange={(e) =>
+                                setDateEdits((prev) => ({
+                                  ...prev,
+                                  [s.id]: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="truncate text-sm font-semibold text-zinc-950">
+                            {s.title}
+                          </div>
+                          <div className="text-sm text-zinc-600">
+                            {formatScheduleDateLong(s.date)}
+                          </div>
+                          <div className="text-xs text-zinc-600">Limit {s.limit}</div>
+                        </>
+                      )}
                     </div>
-                  ) : s.active ? (
-                    <div className="mt-5 inline-flex shrink-0 items-center rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white">
-                      Active
-                    </div>
-                  ) : null}
-                </div>
 
-                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="flex items-end gap-2">
-                    {isEditing ? (
-                      <div className="flex flex-col gap-1">
-                        <label
-                          htmlFor={`schedule-limit-${s.id}`}
-                          className="text-[11px] font-medium text-zinc-700"
-                        >
-                          Player limit
-                        </label>
-                        <input
-                          id={`schedule-limit-${s.id}`}
-                          className="h-9 w-24 rounded-xl border border-zinc-300 px-3 text-sm"
-                          type="number"
-                          min={1}
-                          value={limitEdits[s.id] ?? s.limit}
-                          disabled={editsDisabled}
-                          onChange={(e) =>
-                            setLimitEdits((prev) => ({
-                              ...prev,
-                              [s.id]: Math.max(1, Number(e.target.value)),
-                            }))
-                          }
-                        />
+                    {s.archivedAt ? (
+                      <div className="mt-5 inline-flex shrink-0 items-center rounded-full bg-zinc-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+                        Archived
+                      </div>
+                    ) : s.active ? (
+                      <div className="mt-5 inline-flex shrink-0 items-center rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+                        Active
                       </div>
                     ) : null}
+                  </div>
 
-                    {isEditing ? (
-                      <>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="flex items-end gap-2">
+                      {isEditing ? (
+                        <div className="flex flex-col gap-1">
+                          <label
+                            htmlFor={`schedule-limit-${s.id}`}
+                            className="text-[11px] font-medium text-zinc-700"
+                          >
+                            Player limit
+                          </label>
+                          <input
+                            id={`schedule-limit-${s.id}`}
+                            className="h-9 w-24 rounded-xl border border-zinc-300 px-3 text-sm"
+                            type="number"
+                            min={1}
+                            value={limitEdits[s.id] ?? s.limit}
+                            disabled={editsDisabled}
+                            onChange={(e) =>
+                              setLimitEdits((prev) => ({
+                                ...prev,
+                                [s.id]: Math.max(1, Number(e.target.value)),
+                              }))
+                            }
+                          />
+                        </div>
+                      ) : null}
+
+                      {isEditing ? (
+                        <>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                            disabled={
+                              busy ||
+                              ((limitEdits[s.id] ?? s.limit) === s.limit &&
+                                (titleEdits[s.id] ?? s.title) === s.title &&
+                                (dateEdits[s.id] ?? toDatetimeLocalValue(s.date)) ===
+                                  toDatetimeLocalValue(s.date))
+                            }
+                            onClick={async () => {
+                              await updateSchedule(s.id, {
+                                limit: limitEdits[s.id] ?? s.limit,
+                                title: titleEdits[s.id] ?? s.title,
+                                date: dateEdits[s.id]
+                                  ? new Date(dateEdits[s.id]).toISOString()
+                                  : s.date,
+                              });
+                              setEditingScheduleId(null);
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                            disabled={busy}
+                            onClick={() => cancelEditSchedule(s)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
                         <button
                           type="button"
                           className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                          disabled={
-                            busy ||
-                            ((limitEdits[s.id] ?? s.limit) === s.limit &&
-                              (titleEdits[s.id] ?? s.title) === s.title &&
-                              (dateEdits[s.id] ?? toDatetimeLocalValue(s.date)) ===
-                                toDatetimeLocalValue(s.date))
-                          }
-                          onClick={async () => {
-                            await updateSchedule(s.id, {
-                              limit: limitEdits[s.id] ?? s.limit,
-                              title: titleEdits[s.id] ?? s.title,
-                              date: dateEdits[s.id]
-                                ? new Date(dateEdits[s.id]).toISOString()
-                                : s.date,
-                            });
-                            setEditingScheduleId(null);
-                          }}
+                          disabled={busy || isArchived}
+                          onClick={() => setEditingScheduleId(s.id)}
                         >
-                          Save
+                          Edit
                         </button>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      {s.archivedAt ? (
                         <button
                           type="button"
                           className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
                           disabled={busy}
-                          onClick={() => cancelEditSchedule(s)}
+                          onClick={() => updateSchedule(s.id, { archived: false })}
                         >
-                          Cancel
+                          Restore
                         </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                        disabled={busy || isArchived}
-                        onClick={() => setEditingScheduleId(s.id)}
-                      >
-                        Edit
-                      </button>
-                    )}
-                  </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                          disabled={busy}
+                          onClick={() => updateSchedule(s.id, { archived: true })}
+                        >
+                          Archive
+                        </button>
+                      )}
 
-                  <div className="flex gap-2">
-                    {s.archivedAt ? (
-                      <button
-                        type="button"
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                        disabled={busy}
-                        onClick={() => updateSchedule(s.id, { archived: false })}
-                      >
-                        Restore
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                        disabled={busy}
-                        onClick={() => updateSchedule(s.id, { archived: true })}
-                      >
-                        Archive
-                      </button>
-                    )}
-
-                    {s.active ? (
-                      <button
-                        type="button"
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                        disabled={busy}
-                        onClick={() => setScheduleActive(s.id, false)}
-                      >
-                        Deactivate
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-                        disabled={busy || Boolean(s.archivedAt)}
-                        onClick={() => setScheduleActive(s.id, true)}
-                      >
-                        Set active
-                      </button>
-                    )}
+                      {s.active ? (
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                          disabled={busy}
+                          onClick={() => setScheduleActive(s.id, false)}
+                        >
+                          Deactivate
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                          disabled={busy || Boolean(s.archivedAt)}
+                          onClick={() => setScheduleActive(s.id, true)}
+                        >
+                          Set active
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-zinc-200 p-6">
-        <div className="text-lg font-semibold text-zinc-950">Active signups</div>
-        {activeSchedule ? (
-          <>
-            <div className="mt-1 text-sm text-zinc-600">
-              {activeSchedule.title} · {formatScheduleDateLong(activeSchedule.date)} · Limit {activeSchedule.limit}
-            </div>
-            <div className="mt-4 grid gap-2">
-              {signUps
-                .slice()
-                .sort((a, b) => a.position - b.position)
-                .map((s, idx, arr) => (
-                  <div
-                    key={s.id}
-                    className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-zinc-950">
-                        {s.user.name ?? s.user.email ?? "User"}{s.user.member ? " (member)" : ""}
-                      </div>
-                      <div className="text-xs text-zinc-600">position {s.position}</div>
-                    </div>
-                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
-                      <div className="w-full sm:w-56">
-                        <AdminSignupAvailability
-                          signUpId={s.id}
-                          defaultArriveAt={defaultArriveAt}
-                          defaultLeaveAt={defaultLeaveAt}
-                          initialStatus={s.attendanceStatus}
-                          initialNote={s.attendanceNote}
-                          initialArriveAt={s.arriveAt}
-                          initialLeaveAt={s.leaveAt}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                        disabled={busy}
-                        onClick={() => removeSignup(s.userId)}
-                      >
-                        Remove
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                        disabled={busy || idx === 0}
-                        onClick={() => swap(arr[idx - 1].id, s.id)}
-                      >
-                        Up
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                        disabled={busy || idx === arr.length - 1}
-                        onClick={() => swap(s.id, arr[idx + 1].id)}
-                      >
-                        Down
-                      </button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </>
-        ) : (
-          <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-zinc-200 p-6">
-        <div className="text-lg font-semibold text-zinc-950">Add guest</div>
-        {activeScheduleId ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <select
-              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
-              value={guestOfUserId}
-              onChange={(e) => setGuestOfUserId(e.target.value)}
-            >
-              <option value="">Select a signed-up user…</option>
-              {signUps
-                .slice()
-                .sort((a, b) => a.position - b.position)
-                .map((s) => (
-                  <option key={s.userId} value={s.userId}>
-                    {s.user.name ?? s.user.email ?? "User"}
-                  </option>
-                ))}
-            </select>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <input
-                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
-                placeholder="Guest name"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-              />
-              <button
-                type="button"
-                className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-                disabled={busy || !guestOfUserId || !guestName.trim()}
-                onClick={addGuestForUser}
-              >
-                Add
-              </button>
-            </div>
+              );
+            })}
           </div>
-        ) : (
-          <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
-        )}
-        {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
-      </div>
+        </div>
+      ) : null}
 
-      <div className="rounded-2xl border border-zinc-200 p-6">
-        <div className="text-lg font-semibold text-zinc-950">Users</div>
-        <div className="mt-4 grid gap-2">
-          {users.map((u) => {
-            const admin = isAdmin(u.roles);
-            const adminNotify = hasRole(u.roles, "admin_notify");
-            return (
-              <div key={u.id} className="flex flex-col gap-2 rounded-xl border border-zinc-100 p-3">
-                <div className="text-sm font-medium text-zinc-950">
-                  {u.name ?? u.email ?? u.id}
-                </div>
-                <div className="text-xs text-zinc-600">{u.email ?? ""}</div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                    disabled={busy}
-                    onClick={() => setUser(u.id, { setAdmin: !admin })}
-                  >
-                    {admin ? "Remove admin" : "Make admin"}
-                  </button>
-                  {admin ? (
+      {mode === "signups" ? (
+        <div className="rounded-2xl border border-zinc-200 p-6">
+          <div className="text-lg font-semibold text-zinc-950">Active signups</div>
+          {activeSchedule ? (
+            <>
+              <div className="mt-1 text-sm text-zinc-600">
+                {activeSchedule.title} · {formatScheduleDateLong(activeSchedule.date)} · Limit {activeSchedule.limit}
+              </div>
+              <div className="mt-4 grid gap-2">
+                {signUps
+                  .slice()
+                  .sort((a, b) => a.position - b.position)
+                  .map((s, idx, arr) => (
+                    <div
+                      key={s.id}
+                      className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-zinc-950">
+                          {s.user.name ?? s.user.email ?? "User"}{s.user.member ? " (member)" : ""}
+                        </div>
+                        <div className="text-xs text-zinc-600">position {s.position}</div>
+                      </div>
+                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+                        <div className="w-full sm:w-56">
+                          <AdminSignupAvailability
+                            signUpId={s.id}
+                            defaultArriveAt={defaultArriveAt}
+                            defaultLeaveAt={defaultLeaveAt}
+                            initialStatus={s.attendanceStatus}
+                            initialNote={s.attendanceNote}
+                            initialArriveAt={s.arriveAt}
+                            initialLeaveAt={s.leaveAt}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                          disabled={busy}
+                          onClick={() => removeSignup(s.userId)}
+                        >
+                          Remove
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                          disabled={busy || idx === 0}
+                          onClick={() => swap(arr[idx - 1].id, s.id)}
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                          disabled={busy || idx === arr.length - 1}
+                          onClick={() => swap(s.id, arr[idx + 1].id)}
+                        >
+                          Down
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </>
+          ) : (
+            <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
+          )}
+        </div>
+      ) : null}
+
+      {mode === "signups" ? (
+        <div className="rounded-2xl border border-zinc-200 p-6">
+          <div className="text-lg font-semibold text-zinc-950">Add guest</div>
+          {activeScheduleId ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <select
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                value={guestOfUserId}
+                onChange={(e) => setGuestOfUserId(e.target.value)}
+              >
+                <option value="">Select a signed-up user…</option>
+                {signUps
+                  .slice()
+                  .sort((a, b) => a.position - b.position)
+                  .map((s) => (
+                    <option key={s.userId} value={s.userId}>
+                      {s.user.name ?? s.user.email ?? "User"}
+                    </option>
+                  ))}
+              </select>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                  placeholder="Guest name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                  disabled={busy || !guestOfUserId || !guestName.trim()}
+                  onClick={addGuestForUser}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
+          )}
+          {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+        </div>
+      ) : null}
+
+      {mode === "users" ? (
+        <div className="rounded-2xl border border-zinc-200 p-6">
+          <div className="text-lg font-semibold text-zinc-950">Users</div>
+          <div className="mt-4 grid gap-2">
+            {users.map((u) => {
+              const admin = isAdmin(u.roles);
+              const adminNotify = hasRole(u.roles, "admin_notify");
+              return (
+                <div key={u.id} className="flex flex-col gap-2 rounded-xl border border-zinc-100 p-3">
+                  <div className="text-sm font-medium text-zinc-950">
+                    {u.name ?? u.email ?? u.id}
+                  </div>
+                  <div className="text-xs text-zinc-600">{u.email ?? ""}</div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <button
                       type="button"
                       className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
                       disabled={busy}
-                      onClick={() => setUser(u.id, { adminNotify: !adminNotify })}
+                      onClick={() => setUser(u.id, { setAdmin: !admin })}
                     >
-                      {adminNotify ? "Notify: on" : "Notify: off"}
+                      {admin ? "Remove admin" : "Make admin"}
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                    disabled={busy}
-                    onClick={() => setUser(u.id, { member: !u.member })}
-                  >
-                    {u.member ? "Unset member" : "Set member"}
-                  </button>
+                    {admin ? (
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                        disabled={busy}
+                        onClick={() => setUser(u.id, { adminNotify: !adminNotify })}
+                      >
+                        {adminNotify ? "Notify: on" : "Notify: off"}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                      disabled={busy}
+                      onClick={() => setUser(u.id, { member: !u.member })}
+                    >
+                      {u.member ? "Unset member" : "Set member"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="text-xs text-zinc-500">
-        Tip: Set member=true for users that should be auto-signed up when you create a schedule.
-      </div>
+      {mode === "users" ? (
+        <div className="text-xs text-zinc-500">
+          Tip: Set member=true for users that should be auto-signed up when you create a schedule.
+        </div>
+      ) : null}
     </div>
   );
 }
