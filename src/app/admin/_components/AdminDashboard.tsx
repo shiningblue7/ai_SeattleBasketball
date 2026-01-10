@@ -40,6 +40,8 @@ type SignUpRow = {
   position: number;
   attendanceStatus: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
   attendanceNote: string | null;
+  arriveAt: string | null;
+  leaveAt: string | null;
   user: { email: string | null; name: string | null; member: boolean };
 };
 
@@ -61,11 +63,15 @@ function isAdmin(roles: string | null) {
 export function AdminDashboard({
   schedules,
   activeSchedule,
+  defaultArriveAt,
+  defaultLeaveAt,
   signUps,
   users,
 }: {
   schedules: ScheduleRow[];
   activeSchedule: ScheduleRow | null;
+  defaultArriveAt: string;
+  defaultLeaveAt: string;
   signUps: SignUpRow[];
   users: UserRow[];
 }) {
@@ -684,8 +690,12 @@ export function AdminDashboard({
                       <div className="w-full sm:w-56">
                         <AdminSignupAvailability
                           signUpId={s.id}
+                          defaultArriveAt={defaultArriveAt}
+                          defaultLeaveAt={defaultLeaveAt}
                           initialStatus={s.attendanceStatus}
                           initialNote={s.attendanceNote}
+                          initialArriveAt={s.arriveAt}
+                          initialLeaveAt={s.leaveAt}
                         />
                       </div>
                       <button

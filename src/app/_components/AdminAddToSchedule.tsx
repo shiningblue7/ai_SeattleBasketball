@@ -20,14 +20,20 @@ type CurrentSignUp = {
   position: number;
   attendanceStatus: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
   attendanceNote: string | null;
+  arriveAt: string | null;
+  leaveAt: string | null;
 };
 
 export function AdminAddToSchedule({
   scheduleId,
+  defaultArriveAt,
+  defaultLeaveAt,
   signedUpUserIds,
   currentSignUps,
 }: {
   scheduleId: string;
+  defaultArriveAt: string;
+  defaultLeaveAt: string;
   signedUpUserIds: string[];
   currentSignUps: CurrentSignUp[];
 }) {
@@ -200,8 +206,12 @@ export function AdminAddToSchedule({
                   <div className="w-full sm:w-56">
                     <AdminSignupAvailability
                       signUpId={s.id}
+                      defaultArriveAt={defaultArriveAt}
+                      defaultLeaveAt={defaultLeaveAt}
                       initialStatus={s.attendanceStatus}
                       initialNote={s.attendanceNote}
+                      initialArriveAt={s.arriveAt}
+                      initialLeaveAt={s.leaveAt}
                     />
                   </div>
                   <button

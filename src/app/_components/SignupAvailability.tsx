@@ -7,24 +7,55 @@ type AttendanceStatus = "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
 
 export function SignupAvailability({
   scheduleId,
+  defaultArriveAt,
+  defaultLeaveAt,
   initialStatus,
   initialNote,
+  initialArriveAt,
+  initialLeaveAt,
 }: {
   scheduleId: string;
+  defaultArriveAt: string;
+  defaultLeaveAt: string;
   initialStatus: AttendanceStatus;
   initialNote: string | null;
+  initialArriveAt: string | null;
+  initialLeaveAt: string | null;
 }) {
   const router = useRouter();
+
   const [status, setStatus] = useState<AttendanceStatus>(initialStatus);
   const [note, setNote] = useState(initialNote ?? "");
+  const [arriveAt, setArriveAt] = useState(initialArriveAt ?? defaultArriveAt);
+  const [leaveAt, setLeaveAt] = useState(initialLeaveAt ?? defaultLeaveAt);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const changed = useMemo(() => {
     const noteTrimmed = note.trim();
     const initialTrimmed = (initialNote ?? "").trim();
-    return status !== initialStatus || noteTrimmed !== initialTrimmed;
-  }, [status, note, initialStatus, initialNote]);
+    const arriveTrimmed = arriveAt.trim();
+    const leaveTrimmed = leaveAt.trim();
+    const initialArriveTrimmed = (initialArriveAt ?? defaultArriveAt).trim();
+    const initialLeaveTrimmed = (initialLeaveAt ?? defaultLeaveAt).trim();
+    return (
+      status !== initialStatus ||
+      noteTrimmed !== initialTrimmed ||
+      arriveTrimmed !== initialArriveTrimmed ||
+      leaveTrimmed !== initialLeaveTrimmed
+    );
+  }, [
+    status,
+    note,
+    arriveAt,
+    leaveAt,
+    initialStatus,
+    initialNote,
+    initialArriveAt,
+    initialLeaveAt,
+    defaultArriveAt,
+    defaultLeaveAt,
+  ]);
 
   const save = async () => {
     setError(null);
@@ -37,6 +68,8 @@ export function SignupAvailability({
           scheduleId,
           attendanceStatus: status,
           attendanceNote: note.trim() || null,
+          arriveAt: arriveAt.trim() || null,
+          leaveAt: leaveAt.trim() || null,
         }),
       });
 
@@ -62,6 +95,27 @@ export function SignupAvailability({
       </div>
 
       <div className="mt-3 grid gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <div className="mb-1 text-xs font-medium text-zinc-700">Arrive at (optional)</div>
+            <input
+              type="time"
+              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+              value={arriveAt}
+              onChange={(e) => setArriveAt(e.target.value)}
+            />
+          </div>
+          <div>
+            <div className="mb-1 text-xs font-medium text-zinc-700">Leave at (optional)</div>
+            <input
+              type="time"
+              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+              value={leaveAt}
+              onChange={(e) => setLeaveAt(e.target.value)}
+            />
+          </div>
+        </div>
+
         <select
           className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
           value={status}

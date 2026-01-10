@@ -48,6 +48,8 @@ type LineItem =
       member: boolean;
       attendanceStatus: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
       attendanceNote: string | null;
+      arriveAt: string | null;
+      leaveAt: string | null;
     }
   | {
       kind: "guest";
@@ -56,6 +58,8 @@ type LineItem =
       createdAt: Date;
       label: string;
     };
+
+type UserLineItem = Extract<LineItem, { kind: "user" }>;
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
@@ -103,39 +107,89 @@ export default async function Home() {
     ? signUps.find((s: SignUpRow) => s.userId === userId) ?? null
     : null;
 
-  const renderAttendance = (it: Extract<LineItem, { kind: "user" }>) => {
-    if (it.attendanceStatus === "FULL") return null;
+  const fmtHHMM = (d: Date) =>
+    d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
 
-    const statusLabel =
-      it.attendanceStatus === "LATE"
-        ? "late"
-        : it.attendanceStatus === "LEAVE_EARLY"
-          ? "leave early"
-          : "partial";
+  const defaultArriveAt = activeSchedule ? fmtHHMM(activeSchedule.date) : "";
+  const defaultLeaveAt = activeSchedule
+    ? fmtHHMM(new Date(activeSchedule.date.getTime() + 2 * 60 * 60 * 1000))
+    : "";
 
-    const note = it.attendanceNote?.trim() ? it.attendanceNote.trim() : null;
-
+  const getAttendanceBadge = (status: UserLineItem["attendanceStatus"]) => {
+    if (status === "FULL") return null;
+    if (status === "LATE") {
+      return (
+        <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+          LATE
+        </span>
+      );
+    }
+    if (status === "LEAVE_EARLY") {
+      return (
+        <span className="ml-2 inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-800">
+          LEAVE EARLY
+        </span>
+      );
+    }
     return (
-      <span>
-        <span className="ml-1 font-semibold text-amber-700">({statusLabel})</span>
-        {note ? (
-          <span className="ml-1 font-medium text-sky-700">{note}</span>
-        ) : null}
+      <span className="ml-2 inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+        PARTIAL
       </span>
     );
+  };
+
+  const getArriveAt = (s: SignUpRow): string | null => {
+    return ((s as unknown as { arriveAt?: string | null }).arriveAt ?? null) || null;
+  };
+
+  const getLeaveAt = (s: SignUpRow): string | null => {
+    return ((s as unknown as { leaveAt?: string | null }).leaveAt ?? null) || null;
+  };
+
+  const buildDetailsText = (it: Extract<LineItem, { kind: "user" }>) => {
+    const parts: string[] = [];
+    if (it.arriveAt) parts.push(`Arrive ${it.arriveAt}`);
+    if (it.leaveAt) parts.push(`Leave ${it.leaveAt}`);
+    const note = it.attendanceNote?.trim() ? it.attendanceNote.trim() : null;
+    if (note) parts.push(note);
+    return parts.join(" · ");
   };
 
   const renderLineItem = (it: LineItem) => {
     if (it.kind === "guest") return it.label;
 
+    const details = buildDetailsText(it);
+
     return (
-      <>
-        <span>{it.name}</span>
-        {admin && it.member ? (
-          <span className="ml-1 text-emerald-700">(member)</span>
+      <div className="-ml-1">
+        <div className="flex flex-wrap items-center">
+          <span className="ml-1">{it.name}</span>
+          {admin && it.member ? (
+            <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+              MEMBER
+            </span>
+          ) : null}
+          {getAttendanceBadge(it.attendanceStatus)}
+        </div>
+
+        {details ? (
+          <>
+            <div className="ml-1 mt-0.5 hidden text-xs text-zinc-600 sm:block">
+              {details}
+            </div>
+            <details className="ml-1 mt-0.5 sm:hidden">
+              <summary className="cursor-pointer select-none text-xs text-zinc-500">
+                details
+              </summary>
+              <div className="mt-1 text-xs text-zinc-600">{details}</div>
+            </details>
+          </>
         ) : null}
-        {renderAttendance(it)}
-      </>
+      </div>
     );
   };
 
@@ -149,6 +203,8 @@ export default async function Home() {
       member: s.user.member,
       attendanceStatus: s.attendanceStatus,
       attendanceNote: s.attendanceNote,
+      arriveAt: getArriveAt(s),
+      leaveAt: getLeaveAt(s),
     })),
     ...guestSignUps.map((g: GuestRow) => ({
       kind: "guest" as const,
@@ -243,8 +299,12 @@ export default async function Home() {
                 {alreadySignedUp && currentUserSignup ? (
                   <SignupAvailability
                     scheduleId={activeSchedule.id}
+                    defaultArriveAt={defaultArriveAt}
+                    defaultLeaveAt={defaultLeaveAt}
                     initialStatus={currentUserSignup.attendanceStatus}
                     initialNote={currentUserSignup.attendanceNote}
+                    initialArriveAt={getArriveAt(currentUserSignup)}
+                    initialLeaveAt={getLeaveAt(currentUserSignup)}
                   />
                 ) : null}
               </div>
@@ -255,6 +315,8 @@ export default async function Home() {
         {admin && activeSchedule ? (
           <AdminAddToSchedule
             scheduleId={activeSchedule.id}
+            defaultArriveAt={defaultArriveAt}
+            defaultLeaveAt={defaultLeaveAt}
             signedUpUserIds={signUps.map((s: SignUpRow) => s.userId)}
             currentSignUps={signUps
               .slice()
@@ -266,6 +328,8 @@ export default async function Home() {
                 position: s.position,
                 attendanceStatus: s.attendanceStatus,
                 attendanceNote: s.attendanceNote,
+                arriveAt: getArriveAt(s),
+                leaveAt: getLeaveAt(s),
               }))}
           />
         ) : null}

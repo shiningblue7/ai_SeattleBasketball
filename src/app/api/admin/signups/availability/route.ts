@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import type { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/auth";
 import { requireAdmin } from "@/lib/authz";
@@ -19,6 +20,8 @@ export async function PATCH(req: Request) {
         signUpId?: string;
         attendanceStatus?: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
         attendanceNote?: string | null;
+        arriveAt?: string | null;
+        leaveAt?: string | null;
       }
     | null;
 
@@ -26,6 +29,10 @@ export async function PATCH(req: Request) {
   const attendanceStatus = body?.attendanceStatus;
   const attendanceNoteRaw = body?.attendanceNote ?? null;
   const attendanceNote = attendanceNoteRaw ? attendanceNoteRaw.trim() : null;
+  const arriveAtRaw = body?.arriveAt ?? null;
+  const leaveAtRaw = body?.leaveAt ?? null;
+  const arriveAt = arriveAtRaw ? arriveAtRaw.trim() : null;
+  const leaveAt = leaveAtRaw ? leaveAtRaw.trim() : null;
 
   if (!signUpId || !attendanceStatus) {
     return NextResponse.json(
@@ -36,6 +43,14 @@ export async function PATCH(req: Request) {
 
   if (!allowedStatuses.has(attendanceStatus)) {
     return NextResponse.json({ error: "Invalid attendanceStatus" }, { status: 400 });
+  }
+
+  const timeRe = /^\d{2}:\d{2}$/;
+  if (arriveAt && !timeRe.test(arriveAt)) {
+    return NextResponse.json({ error: "Invalid arriveAt" }, { status: 400 });
+  }
+  if (leaveAt && !timeRe.test(leaveAt)) {
+    return NextResponse.json({ error: "Invalid leaveAt" }, { status: 400 });
   }
 
   const existing = await prisma.signUp.findUnique({
@@ -52,9 +67,11 @@ export async function PATCH(req: Request) {
     data: {
       attendanceStatus,
       attendanceNote: attendanceNote || null,
+      arriveAt: arriveAt || null,
+      leaveAt: leaveAt || null,
     },
     select: { id: true },
-  });
+  } as Prisma.SignUpUpdateArgs);
 
   return NextResponse.json({ ok: true });
 }

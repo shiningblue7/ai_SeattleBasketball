@@ -66,6 +66,18 @@ export default async function AdminPage() {
   const activeSchedule: ScheduleRow | null =
     schedules.find((s: ScheduleRow) => s.active && !s.archivedAt) ?? null;
 
+  const fmtHHMM = (d: Date) =>
+    d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+
+  const defaultArriveAt = activeSchedule ? fmtHHMM(activeSchedule.date) : "";
+  const defaultLeaveAt = activeSchedule
+    ? fmtHHMM(new Date(activeSchedule.date.getTime() + 2 * 60 * 60 * 1000))
+    : "";
+
   const signUps = activeSchedule
     ? await prisma.signUp.findMany({
         where: { scheduleId: activeSchedule.id },
@@ -77,6 +89,14 @@ export default async function AdminPage() {
   type SignUpRow = Prisma.SignUpGetPayload<{
     include: { user: { select: { email: true; name: true; member: true } } };
   }>;
+
+  const getArriveAt = (s: SignUpRow): string | null => {
+    return ((s as unknown as { arriveAt?: string | null }).arriveAt ?? null) || null;
+  };
+
+  const getLeaveAt = (s: SignUpRow): string | null => {
+    return ((s as unknown as { leaveAt?: string | null }).leaveAt ?? null) || null;
+  };
 
   const users = await prisma.user.findMany({
     orderBy: [{ createdAt: "desc" }],
@@ -124,12 +144,16 @@ export default async function AdminPage() {
                 }
               : null
           }
+          defaultArriveAt={defaultArriveAt}
+          defaultLeaveAt={defaultLeaveAt}
           signUps={(signUps as SignUpRow[]).map((s: SignUpRow) => ({
             id: s.id,
             userId: s.userId,
             position: s.position,
             attendanceStatus: s.attendanceStatus,
             attendanceNote: s.attendanceNote,
+            arriveAt: getArriveAt(s),
+            leaveAt: getLeaveAt(s),
             user: { email: s.user.email, name: s.user.name, member: s.user.member },
           }))}
           users={users.map((u: UserRow) => ({

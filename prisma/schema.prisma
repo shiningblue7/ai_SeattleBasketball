@@ -55,6 +55,9 @@ model SignUp {
   attendanceStatus AttendanceStatus @default(FULL)
   attendanceNote   String?
 
+  arriveAt String?
+  leaveAt  String?
+
   schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
