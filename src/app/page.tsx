@@ -44,7 +44,10 @@ type LineItem =
       id: string;
       position: number;
       createdAt: Date;
-      label: string;
+      name: string;
+      member: boolean;
+      attendanceStatus: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
+      attendanceNote: string | null;
     }
   | {
       kind: "guest";
@@ -100,23 +103,40 @@ export default async function Home() {
     ? signUps.find((s: SignUpRow) => s.userId === userId) ?? null
     : null;
 
-  const formatAttendanceSuffix = (
-    s: SignUpRow
-  ): string => {
-    if (s.attendanceStatus === "FULL") return "";
-    const label =
-      s.attendanceStatus === "LATE"
+  const renderAttendance = (it: Extract<LineItem, { kind: "user" }>) => {
+    if (it.attendanceStatus === "FULL") return null;
+
+    const statusLabel =
+      it.attendanceStatus === "LATE"
         ? "late"
-        : s.attendanceStatus === "LEAVE_EARLY"
+        : it.attendanceStatus === "LEAVE_EARLY"
           ? "leave early"
           : "partial";
-    const note = s.attendanceNote?.trim() ? `: ${s.attendanceNote.trim()}` : "";
-    return ` (${label}${note})`;
+
+    const note = it.attendanceNote?.trim() ? it.attendanceNote.trim() : null;
+
+    return (
+      <span>
+        <span className="ml-1 font-semibold text-amber-700">({statusLabel})</span>
+        {note ? (
+          <span className="ml-1 font-medium text-sky-700">{note}</span>
+        ) : null}
+      </span>
+    );
   };
 
-  const formatMemberSuffix = (s: SignUpRow): string => {
-    if (!admin) return "";
-    return s.user.member ? " (member)" : "";
+  const renderLineItem = (it: LineItem) => {
+    if (it.kind === "guest") return it.label;
+
+    return (
+      <>
+        <span>{it.name}</span>
+        {admin && it.member ? (
+          <span className="ml-1 text-emerald-700">(member)</span>
+        ) : null}
+        {renderAttendance(it)}
+      </>
+    );
   };
 
   const items: LineItem[] = [
@@ -125,10 +145,10 @@ export default async function Home() {
       id: s.id,
       position: s.position,
       createdAt: s.createdAt,
-      label:
-        (s.user.name ?? s.user.email ?? "User") +
-        formatMemberSuffix(s) +
-        formatAttendanceSuffix(s),
+      name: s.user.name ?? s.user.email ?? "User",
+      member: s.user.member,
+      attendanceStatus: s.attendanceStatus,
+      attendanceNote: s.attendanceNote,
     })),
     ...guestSignUps.map((g: GuestRow) => ({
       kind: "guest" as const,
@@ -200,7 +220,7 @@ export default async function Home() {
                 <div className="text-sm font-medium text-zinc-950">Playing</div>
                 <ol className="list-decimal pl-5 text-sm text-zinc-800">
                   {items.slice(0, limit).map((it) => (
-                    <li key={it.id}>{it.label}</li>
+                    <li key={it.id}>{renderLineItem(it)}</li>
                   ))}
                 </ol>
               </div>
@@ -208,7 +228,7 @@ export default async function Home() {
                 <div className="text-sm font-medium text-zinc-950">Waitlist</div>
                 <ol className="list-decimal pl-5 text-sm text-zinc-800">
                   {items.slice(limit).map((it) => (
-                    <li key={it.id}>{it.label}</li>
+                    <li key={it.id}>{renderLineItem(it)}</li>
                   ))}
                 </ol>
               </div>
