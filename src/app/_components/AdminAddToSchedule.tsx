@@ -183,38 +183,38 @@ export function AdminAddToSchedule({
             .slice()
             .sort((a, b) => a.position - b.position)
             .map((s, idx, arr) => (
-            <div
-              key={s.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-zinc-100 p-3"
-            >
-              <div className="truncate text-sm text-zinc-900">{s.label}</div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                  disabled={busy}
-                  onClick={() => removeExisting(s.userId)}
-                >
-                  Remove
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                  disabled={busy || idx === 0}
-                  onClick={() => swapExisting(arr[idx - 1].id, s.id)}
-                >
-                  Up
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                  disabled={busy || idx === arr.length - 1}
-                  onClick={() => swapExisting(s.id, arr[idx + 1].id)}
-                >
-                  Down
-                </button>
+              <div
+                key={s.id}
+                className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 truncate text-sm text-zinc-900">{s.label}</div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+                  <button
+                    type="button"
+                    className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 sm:w-auto"
+                    disabled={busy}
+                    onClick={() => removeExisting(s.userId)}
+                  >
+                    Remove
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 sm:w-auto"
+                    disabled={busy || idx === 0}
+                    onClick={() => swapExisting(arr[idx - 1].id, s.id)}
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 sm:w-auto"
+                    disabled={busy || idx === arr.length - 1}
+                    onClick={() => swapExisting(s.id, arr[idx + 1].id)}
+                  >
+                    Down
+                  </button>
+                </div>
               </div>
-            </div>
           ))}
         </div>
       </div>

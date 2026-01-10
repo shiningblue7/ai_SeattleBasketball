@@ -1,0 +1,17 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_dev_data:/data
+      - caddy_dev_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_dev_data:
+  caddy_dev_config:
