@@ -55,7 +55,7 @@ export async function PATCH(req: Request) {
   }
 
   const body = (await req.json().catch(() => null)) as
-    | { userId?: string; setAdmin?: boolean; member?: boolean; name?: string }
+    | { userId?: string; setAdmin?: boolean; adminNotify?: boolean; member?: boolean; name?: string }
     | null;
 
   const userId = body?.userId;
@@ -75,9 +75,21 @@ export async function PATCH(req: Request) {
   const data: { roles?: string; member?: boolean; name?: string } = {};
 
   if (typeof body?.setAdmin === "boolean") {
-    data.roles = body.setAdmin
-      ? addRole(existing.roles, "admin")
-      : removeRole(existing.roles, "admin");
+    if (body.setAdmin) {
+      const withAdmin = addRole(existing.roles, "admin");
+      data.roles = addRole(withAdmin, "admin_notify");
+    } else {
+      const withoutAdmin = removeRole(existing.roles, "admin");
+      data.roles = removeRole(withoutAdmin, "admin_notify");
+    }
+  }
+
+  if (typeof body?.adminNotify === "boolean") {
+    if (body.adminNotify) {
+      data.roles = addRole(data.roles ?? existing.roles, "admin_notify");
+    } else {
+      data.roles = removeRole(data.roles ?? existing.roles, "admin_notify");
+    }
   }
 
   if (typeof body?.member === "boolean") {

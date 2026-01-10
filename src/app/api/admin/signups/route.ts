@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 
 import { authOptions } from "@/auth";
 import { requireAdmin } from "@/lib/authz";
+import { getSignupSlotForUser, notifyAdminsOfSignupChange } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
 
   const schedule = await prisma.schedule.findUnique({
     where: { id: scheduleId },
-    select: { id: true },
+    select: { id: true, title: true, date: true },
   });
 
   if (!schedule) {
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true },
+    select: { id: true, name: true, email: true },
   });
 
   if (!user) {
@@ -46,9 +47,23 @@ export async function POST(req: Request) {
   }
 
   if (action === "leave") {
-    await prisma.signUp.deleteMany({
+    const slot = await getSignupSlotForUser(scheduleId, userId).catch(() => null);
+    const res = await prisma.signUp.deleteMany({
       where: { scheduleId, userId },
     });
+
+    if (res.count > 0) {
+      const actorId = session!.user!.id;
+      const actorLabel = session!.user!.name ?? session!.user!.email ?? actorId;
+      const targetLabel = user.name ?? user.email ?? user.id;
+      await notifyAdminsOfSignupChange({
+        action: "leave",
+        schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
+        actor: { id: actorId, label: actorLabel },
+        target: { id: user.id, label: targetLabel },
+        slot,
+      }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
+    }
     return NextResponse.json({ ok: true });
   }
 
@@ -76,6 +91,18 @@ export async function POST(req: Request) {
       position: nextPosition,
     },
   });
+
+  {
+    const actorId = session!.user!.id;
+    const actorLabel = session!.user!.name ?? session!.user!.email ?? actorId;
+    const targetLabel = user.name ?? user.email ?? user.id;
+    await notifyAdminsOfSignupChange({
+      action: "join",
+      schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
+      actor: { id: actorId, label: actorLabel },
+      target: { id: user.id, label: targetLabel },
+    }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
+  }
 
   return NextResponse.json({ ok: true });
 }

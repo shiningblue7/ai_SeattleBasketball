@@ -53,6 +53,15 @@ type UserRow = {
   member: boolean;
 };
 
+function hasRole(roles: string | null, role: string) {
+  const needle = role.trim().toLowerCase();
+  return (roles ?? "")
+    .split(",")
+    .map((r) => r.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(needle);
+}
+
 function isAdmin(roles: string | null) {
   return (roles ?? "")
     .split(",")
@@ -300,7 +309,10 @@ export function AdminDashboard({
     }
   };
 
-  const setUser = async (userId: string, patch: { setAdmin?: boolean; member?: boolean }) => {
+  const setUser = async (
+    userId: string,
+    patch: { setAdmin?: boolean; adminNotify?: boolean; member?: boolean }
+  ) => {
     setError(null);
     setBusy(true);
     try {
@@ -780,6 +792,7 @@ export function AdminDashboard({
         <div className="mt-4 grid gap-2">
           {users.map((u) => {
             const admin = isAdmin(u.roles);
+            const adminNotify = hasRole(u.roles, "admin_notify");
             return (
               <div key={u.id} className="flex flex-col gap-2 rounded-xl border border-zinc-100 p-3">
                 <div className="text-sm font-medium text-zinc-950">
@@ -795,6 +808,16 @@ export function AdminDashboard({
                   >
                     {admin ? "Remove admin" : "Make admin"}
                   </button>
+                  {admin ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                      disabled={busy}
+                      onClick={() => setUser(u.id, { adminNotify: !adminNotify })}
+                    >
+                      {adminNotify ? "Notify: on" : "Notify: off"}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"

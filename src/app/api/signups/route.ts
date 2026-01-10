@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 
 import { authOptions } from "@/auth";
+import { getSignupSlotForUser, notifyAdminsOfSignupChange } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
 
   const schedule = await prisma.schedule.findUnique({
     where: { id: scheduleId },
-    select: { id: true, active: true },
+    select: { id: true, active: true, title: true, date: true },
   });
 
   if (!schedule || !schedule.active) {
@@ -39,9 +40,21 @@ export async function POST(req: Request) {
   }
 
   if (action === "leave") {
-    await prisma.signUp.deleteMany({
+    const slot = await getSignupSlotForUser(scheduleId, userId).catch(() => null);
+    const res = await prisma.signUp.deleteMany({
       where: { scheduleId, userId },
     });
+
+    if (res.count > 0) {
+      const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
+      await notifyAdminsOfSignupChange({
+        action: "leave",
+        schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
+        actor: { id: userId, label: actorLabel },
+        target: { id: userId, label: actorLabel },
+        slot,
+      }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
+    }
 
     return NextResponse.json({ ok: true });
   }
@@ -78,6 +91,16 @@ export async function POST(req: Request) {
       position: nextPosition,
     },
   });
+
+  {
+    const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
+    await notifyAdminsOfSignupChange({
+      action: "join",
+      schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
+      actor: { id: userId, label: actorLabel },
+      target: { id: userId, label: actorLabel },
+    }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
+  }
 
   return NextResponse.json({ ok: true });
 }
