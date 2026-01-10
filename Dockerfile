@@ -51,4 +51,8 @@ CMD ["node", "server.js"]
 FROM deps AS migrate
 WORKDIR /app
 COPY . .
+
+# Needed when using this image to run Node scripts that import @prisma/client
+RUN npx prisma generate
+
 CMD ["npx", "prisma", "migrate", "deploy"]
