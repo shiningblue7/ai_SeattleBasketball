@@ -225,22 +225,28 @@ export default async function Home() {
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
         <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 dark:bg-black">
-          <div className="flex flex-col gap-2">
-            <div className="text-base font-semibold text-zinc-950">
-              {activeSchedule ? activeSchedule.title : "No active schedule"}
+          {session?.user ? (
+            <div className="flex flex-col gap-2">
+              <div className="text-base font-semibold text-zinc-950">
+                {activeSchedule ? activeSchedule.title : "No active schedule"}
+              </div>
+              {activeSchedule ? (
+                <div className="text-sm text-zinc-600">
+                  {activeSchedule.date.toLocaleString()} · Limit {limit}
+                </div>
+              ) : (
+                <div className="text-sm text-zinc-600">
+                  An admin needs to create and activate a schedule.
+                </div>
+              )}
             </div>
-            {activeSchedule ? (
-              <div className="text-sm text-zinc-600">
-                {activeSchedule.date.toLocaleString()} · Limit {limit}
-              </div>
-            ) : (
-              <div className="text-sm text-zinc-600">
-                An admin needs to create and activate a schedule.
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="text-center text-sm text-zinc-600">
+              Sign in to view the schedule
+            </div>
+          )}
 
-          {activeSchedule ? (
+          {activeSchedule && session?.user ? (
             <div className="mt-5 grid gap-6 sm:grid-cols-2">
               <div className="flex flex-col gap-3">
                 <div className="text-sm font-medium text-zinc-950">Playing</div>

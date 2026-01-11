@@ -77,6 +77,13 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
           </button>
           <button
             type="button"
+            className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+            onClick={() => signIn("discord", { callbackUrl: "/" })}
+          >
+            Link Discord
+          </button>
+          <button
+            type="button"
             className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800"
             onClick={() => signOut({ callbackUrl: "/" })}
           >
@@ -98,6 +105,13 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
             onClick={() => signIn("github")}
           >
             Continue with GitHub
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-indigo-600 px-6 text-sm font-medium text-white hover:bg-indigo-700"
+            onClick={() => signIn("discord")}
+          >
+            Continue with Discord
           </button>
 
           <div className="w-full rounded-2xl border border-zinc-200 p-4">
