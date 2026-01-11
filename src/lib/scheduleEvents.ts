@@ -18,7 +18,7 @@ export async function createScheduleEvent(input: {
     targetUserId = null,
     guestSignUpId = null,
     signUpId = null,
-    metadata = null,
+    metadata,
   } = input;
 
   return prisma.scheduleEvent.create({
@@ -29,7 +29,7 @@ export async function createScheduleEvent(input: {
       targetUserId,
       guestSignUpId,
       signUpId,
-      metadata,
+      ...(metadata == null ? {} : { metadata }),
     },
     select: { id: true },
   });
