@@ -20,6 +20,7 @@ export function AdminAddToSchedule({
 }) {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [query, setQuery] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,29 @@ export function AdminAddToSchedule({
     () => users.find((u) => u.id === selectedUserId) ?? null,
     [users, selectedUserId]
   );
+
+  const filteredUsers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+
+    const scored = users
+      .map((u) => {
+        const name = (u.name ?? "").toLowerCase();
+        const email = (u.email ?? "").toLowerCase();
+        const label = (u.name || u.email || u.id).toLowerCase();
+        const score =
+          label === q ? 100 :
+          name.startsWith(q) ? 80 :
+          email.startsWith(q) ? 70 :
+          label.includes(q) ? 60 :
+          0;
+        return { u, score };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    return scored.slice(0, 12).map((x) => x.u);
+  }, [users, query]);
 
   const alreadyInSchedule = Boolean(
     selectedUserId && signedUpUserIds.includes(selectedUserId)
@@ -81,18 +105,45 @@ export function AdminAddToSchedule({
       <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
         <div className="text-sm font-medium text-zinc-950">Add user to schedule</div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <select
-            className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-          >
-            <option value="">Select a user…</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {(u.name || u.email || u.id) + (u.member ? " (member)" : "")}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <input
+              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+              placeholder="Type a name or email…"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (!e.target.value.trim()) setSelectedUserId("");
+              }}
+            />
+
+            {query.trim() && filteredUsers.length ? (
+              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white shadow">
+                {filteredUsers.map((u) => {
+                  const label = (u.name || u.email || u.id) + (u.member ? " (member)" : "");
+                  const secondary = u.email && u.name ? u.email : null;
+                  const selected = u.id === selectedUserId;
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-zinc-50 ${
+                        selected ? "bg-zinc-50" : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedUserId(u.id);
+                        setQuery(label);
+                      }}
+                    >
+                      <div className="truncate font-medium text-zinc-950">{label}</div>
+                      {secondary ? (
+                        <div className="truncate text-xs text-zinc-600">{secondary}</div>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
