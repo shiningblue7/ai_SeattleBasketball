@@ -29,6 +29,8 @@ model User {
   guestSignUpsAdded GuestSignUp[] @relation("GuestAddedBy")
 
   guestSignUpsFor GuestSignUp[] @relation("GuestFor")
+
+  waitlistNotifications WaitlistNotification[]
 }
 
 model Schedule {
@@ -43,6 +45,21 @@ model Schedule {
   signUps SignUp[]
 
   guestSignUps GuestSignUp[]
+
+  waitlistNotifications WaitlistNotification[]
+}
+
+model WaitlistNotification {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  userId     String
+  scheduleId String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scheduleId])
+  @@index([scheduleId])
 }
 
 model SignUp {

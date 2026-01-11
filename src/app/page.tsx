@@ -1,13 +1,13 @@
 import Image from "next/image";
-
 import { getServerSession } from "next-auth/next";
 import type { Prisma } from "@prisma/client";
 
 import { ActiveScheduleActions } from "@/app/_components/ActiveScheduleActions";
-import { AdminAddToSchedule } from "@/app/_components/AdminAddToSchedule";
+import { WaitlistNotifyToggle } from "@/app/_components/WaitlistNotifyToggle";
 import { AuthButtons } from "@/app/_components/AuthButtons";
 import { GuestSignUps } from "@/app/_components/GuestSignUps";
 import { SignupAvailability } from "@/app/_components/SignupAvailability";
+import { AdminAddToSchedule } from "@/app/_components/AdminAddToSchedule";
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -295,6 +295,8 @@ export default async function Home() {
                   signedIn={Boolean(session?.user)}
                   alreadySignedUp={alreadySignedUp}
                 />
+
+                {session?.user?.id ? <WaitlistNotifyToggle scheduleId={activeSchedule.id} /> : null}
 
                 {alreadySignedUp && currentUserSignup ? (
                   <SignupAvailability

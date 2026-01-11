@@ -1,10 +1,33 @@
 import { prisma } from "@/lib/prisma";
 
+type WaitlistNotificationDelegate = {
+  findMany: (args: unknown) => Promise<unknown>;
+};
+
+const waitlistNotification = (prisma as unknown as { waitlistNotification?: WaitlistNotificationDelegate })
+  .waitlistNotification;
+
 type EmailPayload = {
   to: string[];
   subject: string;
   text: string;
 };
+
+type PlayingEntity =
+  | {
+      kind: "user";
+      key: string;
+      ownerUserId: string;
+      label: string;
+      overall: number;
+    }
+  | {
+      kind: "guest";
+      key: string;
+      ownerUserId: string | null;
+      label: string;
+      overall: number;
+    };
 
 export type SignupSlot =
   | { kind: "playing"; overall: number; within: number; limit: number }
@@ -102,6 +125,157 @@ async function sendWithResend(payload: EmailPayload) {
 
   const okBody = await resp.text().catch(() => "");
   console.log("[email] Resend accepted", { toCount: payload.to.length, body: okBody });
+}
+
+async function getPlayingSet(scheduleId: string): Promise<{
+  schedule: { id: string; title: string; date: Date; limit: number } | null;
+  playing: PlayingEntity[];
+}> {
+  const schedule = await prisma.schedule.findUnique({
+    where: { id: scheduleId },
+    select: {
+      id: true,
+      title: true,
+      date: true,
+      limit: true,
+      signUps: {
+        select: {
+          userId: true,
+          position: true,
+          createdAt: true,
+          user: { select: { name: true, email: true } },
+        },
+      },
+      guestSignUps: {
+        select: {
+          id: true,
+          guestName: true,
+          guestOfUserId: true,
+          position: true,
+          createdAt: true,
+        },
+      },
+    },
+  });
+
+  if (!schedule) {
+    return { schedule: null, playing: [] };
+  }
+
+  const combined = [
+    ...schedule.signUps.map((s) => ({
+      kind: "user" as const,
+      key: `u:${s.userId}`,
+      ownerUserId: s.userId,
+      label: s.user.name ?? s.user.email ?? "User",
+      position: s.position,
+      createdAt: s.createdAt,
+    })),
+    ...schedule.guestSignUps.map((g) => ({
+      kind: "guest" as const,
+      key: `g:${g.id}`,
+      ownerUserId: g.guestOfUserId ?? null,
+      label: g.guestName,
+      position: g.position,
+      createdAt: g.createdAt,
+    })),
+  ].sort((a, b) => {
+    if (a.position !== b.position) return a.position - b.position;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  const playingRaw = combined.slice(0, schedule.limit);
+  const playing: PlayingEntity[] = playingRaw.map((it, idx) => ({
+    ...it,
+    overall: idx + 1,
+  }));
+
+  return {
+    schedule: { id: schedule.id, title: schedule.title, date: schedule.date, limit: schedule.limit },
+    playing,
+  };
+}
+
+export async function getPlayingKeysForSchedule(scheduleId: string): Promise<string[]> {
+  const set = await getPlayingSet(scheduleId);
+  return set.playing.map((p) => p.key);
+}
+
+export async function notifyWaitlistPromotionsForSchedule({
+  scheduleId,
+  beforePlayingKeys,
+}: {
+  scheduleId: string;
+  beforePlayingKeys: string[];
+}) {
+  if (!waitlistNotification) {
+    console.warn("[email] waitlistNotification model not available (run prisma migrate/generate)");
+    return;
+  }
+
+  const after = await getPlayingSet(scheduleId);
+  if (!after.schedule) return;
+  const schedule = after.schedule;
+
+  const beforeKeySet = new Set(beforePlayingKeys);
+  const promoted = after.playing.filter((p) => !beforeKeySet.has(p.key));
+
+  if (promoted.length === 0) return;
+
+  const recipients = promoted
+    .map((p) => p.ownerUserId)
+    .filter((x): x is string => Boolean(x));
+
+  if (recipients.length === 0) return;
+
+  const optedInRaw = (await waitlistNotification.findMany({
+    where: { scheduleId: after.schedule.id, userId: { in: recipients } },
+    select: { userId: true },
+  })) as Array<{ userId: string }>;
+
+  const optedInUserIds = new Set(optedInRaw.map((r) => r.userId));
+  const optedInRecipients = Array.from(new Set(recipients)).filter((id) => optedInUserIds.has(id));
+
+  if (optedInRecipients.length === 0) return;
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: optedInRecipients } },
+    select: { id: true, email: true, name: true },
+  });
+
+  const byUser = new Map<string, PlayingEntity[]>();
+  for (const p of promoted) {
+    if (!p.ownerUserId) continue;
+    if (!optedInUserIds.has(p.ownerUserId)) continue;
+    const arr = byUser.get(p.ownerUserId) ?? [];
+    arr.push(p);
+    byUser.set(p.ownerUserId, arr);
+  }
+
+  const scheduleLine = `Schedule: ${schedule.title}`;
+  const whenLine = `When: ${schedule.date.toLocaleString()}`;
+
+  await Promise.all(
+    users
+      .filter((u) => u.email)
+      .map(async (u) => {
+        const items = byUser.get(u.id) ?? [];
+        if (items.length === 0) return;
+
+        const lines = items
+          .slice()
+          .sort((a, b) => a.overall - b.overall)
+          .map((it) => {
+            if (it.kind === "user") return `- You are now playing (spot #${it.overall}/${schedule.limit})`;
+            return `- Guest: ${it.label} (spot #${it.overall}/${schedule.limit})`;
+          });
+
+        const subject = `[Seattle Basketball] You got a spot (${schedule.title})`;
+        const text = [scheduleLine, whenLine, "", "Good news — you moved into a playing spot:", ...lines].join("\n");
+
+        await sendWithResend({ to: [u.email as string], subject, text });
+      })
+  );
 }
 
 export async function notifyAdminsOfSignupChange({

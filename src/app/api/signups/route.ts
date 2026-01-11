@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 
 import { authOptions } from "@/auth";
-import { getSignupSlotForUser, notifyAdminsOfSignupChange } from "@/lib/email";
+import {
+  getPlayingKeysForSchedule,
+  getSignupSlotForUser,
+  notifyAdminsOfSignupChange,
+  notifyWaitlistPromotionsForSchedule,
+} from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { normalizeSchedulePositions } from "@/lib/schedulePositions";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -40,12 +46,17 @@ export async function POST(req: Request) {
   }
 
   if (action === "leave") {
+    const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
     const slot = await getSignupSlotForUser(scheduleId, userId).catch(() => null);
     const res = await prisma.signUp.deleteMany({
       where: { scheduleId, userId },
     });
 
     if (res.count > 0) {
+      await normalizeSchedulePositions(scheduleId).catch((e) =>
+        console.error("[positions] normalizeSchedulePositions failed", e)
+      );
+
       const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
       await notifyAdminsOfSignupChange({
         action: "leave",
@@ -54,6 +65,11 @@ export async function POST(req: Request) {
         target: { id: userId, label: actorLabel },
         slot,
       }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
+
+      await notifyWaitlistPromotionsForSchedule({
+        scheduleId,
+        beforePlayingKeys,
+      }).catch((e) => console.error("[email] notifyWaitlistPromotionsForSchedule failed", e));
     }
 
     return NextResponse.json({ ok: true });

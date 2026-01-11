@@ -4,7 +4,9 @@ import type { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
+import { getPlayingKeysForSchedule, notifyWaitlistPromotionsForSchedule } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { normalizeSchedulePositions } from "@/lib/schedulePositions";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -109,7 +111,7 @@ export async function DELETE(req: Request) {
 
   const guest = await prisma.guestSignUp.findUnique({
     where: { id: guestSignUpId },
-    select: { id: true, addedByUserId: true, guestOfUserId: true },
+    select: { id: true, scheduleId: true, addedByUserId: true, guestOfUserId: true },
   });
 
   if (!guest) {
@@ -121,7 +123,18 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const beforePlayingKeys = await getPlayingKeysForSchedule(guest.scheduleId).catch(() => []);
+
   await prisma.guestSignUp.delete({ where: { id: guestSignUpId } });
+
+  await normalizeSchedulePositions(guest.scheduleId).catch((e) =>
+    console.error("[positions] normalizeSchedulePositions failed", e)
+  );
+
+  await notifyWaitlistPromotionsForSchedule({
+    scheduleId: guest.scheduleId,
+    beforePlayingKeys,
+  }).catch((e) => console.error("[email] notifyWaitlistPromotionsForSchedule failed", e));
 
   return NextResponse.json({ ok: true });
 }

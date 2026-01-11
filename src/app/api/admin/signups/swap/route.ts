@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 
 import { authOptions } from "@/auth";
 import { requireAdmin } from "@/lib/authz";
+import { getPlayingKeysForSchedule, notifyWaitlistPromotionsForSchedule } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
@@ -53,6 +54,8 @@ export async function POST(req: Request) {
     );
   }
 
+  const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
+
   await prisma.$transaction([
     prisma.signUp.update({
       where: { id: a.id },
@@ -63,6 +66,11 @@ export async function POST(req: Request) {
       data: { position: a.position },
     }),
   ]);
+
+  await notifyWaitlistPromotionsForSchedule({
+    scheduleId,
+    beforePlayingKeys,
+  }).catch((e) => console.error("[email] notifyWaitlistPromotionsForSchedule failed", e));
 
   return NextResponse.json({ ok: true });
 }

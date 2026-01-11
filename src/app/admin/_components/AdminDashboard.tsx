@@ -763,7 +763,7 @@ export function AdminDashboard({
                         <div className="truncate text-sm font-medium text-zinc-950">
                           {s.user.name ?? s.user.email ?? "User"}{s.user.member ? " (member)" : ""}
                         </div>
-                        <div className="text-xs text-zinc-600">position {s.position}</div>
+                        <div className="text-xs text-zinc-600">order {idx + 1}</div>
                       </div>
                       <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
                         <div className="w-full sm:w-56">
