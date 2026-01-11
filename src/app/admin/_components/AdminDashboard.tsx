@@ -71,6 +71,24 @@ type UserRow = {
   member: boolean;
 };
 
+type EventRow = {
+  id: string;
+  createdAt: string;
+  type:
+    | "SIGNUP_JOIN"
+    | "SIGNUP_LEAVE"
+    | "ADMIN_SIGNUP_JOIN"
+    | "ADMIN_SIGNUP_LEAVE"
+    | "GUEST_ADD"
+    | "GUEST_REMOVE"
+    | "SIGNUP_SWAP"
+    | "AVAILABILITY_UPDATE"
+    | "ADMIN_AVAILABILITY_UPDATE";
+  actorLabel: string | null;
+  targetLabel: string | null;
+  metadata: unknown;
+};
+
 function hasRole(roles: string | null, role: string) {
   const needle = role.trim().toLowerCase();
   return (roles ?? "")
@@ -96,6 +114,7 @@ export function AdminDashboard({
   defaultLeaveAt,
   signUps,
   users,
+  events,
 }: {
   mode: "schedules" | "signups" | "users";
   schedules: ScheduleRow[];
@@ -105,6 +124,7 @@ export function AdminDashboard({
   defaultLeaveAt: string;
   signUps: SignUpRow[];
   users: UserRow[];
+  events?: EventRow[];
 }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -152,6 +172,23 @@ export function AdminDashboard({
   );
 
   const refresh = () => router.refresh();
+
+  const formatEventType = (t: EventRow["type"]) => {
+    if (t === "SIGNUP_JOIN") return "User signed up";
+    if (t === "SIGNUP_LEAVE") return "User withdrew";
+    if (t === "ADMIN_SIGNUP_JOIN") return "Admin added signup";
+    if (t === "ADMIN_SIGNUP_LEAVE") return "Admin removed signup";
+    if (t === "GUEST_ADD") return "Guest added";
+    if (t === "GUEST_REMOVE") return "Guest removed";
+    if (t === "SIGNUP_SWAP") return "Reordered signups";
+    if (t === "AVAILABILITY_UPDATE") return "Availability updated";
+    return "Admin updated availability";
+  };
+
+  const formatEventTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  };
 
   const addGuestForUser = async () => {
     if (!activeScheduleId) return;
@@ -472,6 +509,32 @@ export function AdminDashboard({
             {error ? <div className="text-sm text-red-600">{error}</div> : null}
           </div>
         </div>
+      ) : null}
+
+      {mode === "signups" ? (
+        <details className="rounded-2xl border border-zinc-200 p-6">
+          <summary className="cursor-pointer select-none text-lg font-semibold text-zinc-950">
+            History
+          </summary>
+          <div className="mt-4 grid gap-2">
+            {(events ?? []).length === 0 ? (
+              <div className="text-sm text-zinc-600">No history yet.</div>
+            ) : (
+              (events ?? []).map((e) => (
+                <div key={e.id} className="rounded-xl border border-zinc-100 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-medium text-zinc-950">{formatEventType(e.type)}</div>
+                    <div className="text-xs text-zinc-600">{formatEventTime(e.createdAt)}</div>
+                  </div>
+                  <div className="mt-1 text-xs text-zinc-600">
+                    {e.actorLabel ? `By ${e.actorLabel}` : ""}
+                    {e.targetLabel ? ` · Target ${e.targetLabel}` : ""}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </details>
       ) : null}
 
       {mode === "signups" && activeScheduleId ? (

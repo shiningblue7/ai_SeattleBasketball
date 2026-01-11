@@ -10,6 +10,8 @@ import {
 } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { normalizeSchedulePositions } from "@/lib/schedulePositions";
+import { createScheduleEvent } from "@/lib/scheduleEvents";
+import { ScheduleEventType } from "@prisma/client";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -56,6 +58,14 @@ export async function POST(req: Request) {
       await normalizeSchedulePositions(scheduleId).catch((e) =>
         console.error("[positions] normalizeSchedulePositions failed", e)
       );
+
+      await createScheduleEvent({
+        scheduleId,
+        type: ScheduleEventType.SIGNUP_LEAVE,
+        actorUserId: userId,
+        targetUserId: userId,
+        metadata: slot ? ({ slot } as const) : null,
+      }).catch((e) => console.error("[events] createScheduleEvent failed", e));
 
       const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
       await notifyAdminsOfSignupChange({
@@ -107,6 +117,13 @@ export async function POST(req: Request) {
       position: nextPosition,
     },
   });
+
+  await createScheduleEvent({
+    scheduleId,
+    type: ScheduleEventType.SIGNUP_JOIN,
+    actorUserId: userId,
+    targetUserId: userId,
+  }).catch((e) => console.error("[events] createScheduleEvent failed", e));
 
   {
     const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;

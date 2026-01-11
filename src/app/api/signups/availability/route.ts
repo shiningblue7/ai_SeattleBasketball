@@ -4,6 +4,8 @@ import type { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { createScheduleEvent } from "@/lib/scheduleEvents";
+import { ScheduleEventType } from "@prisma/client";
 
 const allowedStatuses = new Set(["FULL", "LATE", "LEAVE_EARLY", "PARTIAL"] as const);
 
@@ -87,6 +89,14 @@ export async function PATCH(req: Request) {
     },
     select: { id: true },
   } as Prisma.SignUpUpdateArgs);
+
+  await createScheduleEvent({
+    scheduleId,
+    type: ScheduleEventType.AVAILABILITY_UPDATE,
+    actorUserId: userId,
+    targetUserId: userId,
+    metadata: { attendanceStatus, arriveAt, leaveAt },
+  }).catch((e) => console.error("[events] createScheduleEvent failed", e));
 
   return NextResponse.json({ ok: true });
 }

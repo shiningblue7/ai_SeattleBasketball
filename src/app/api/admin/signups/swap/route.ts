@@ -5,6 +5,8 @@ import { authOptions } from "@/auth";
 import { requireAdmin } from "@/lib/authz";
 import { getPlayingKeysForSchedule, notifyWaitlistPromotionsForSchedule } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { createScheduleEvent } from "@/lib/scheduleEvents";
+import { ScheduleEventType } from "@prisma/client";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -66,6 +68,21 @@ export async function POST(req: Request) {
       data: { position: a.position },
     }),
   ]);
+
+  await createScheduleEvent({
+    scheduleId,
+    type: ScheduleEventType.SIGNUP_SWAP,
+    actorUserId: session!.user!.id,
+    signUpId: a.id,
+    metadata: {
+      signUpId1: a.id,
+      signUpId2: b.id,
+      from1: a.position,
+      to1: b.position,
+      from2: b.position,
+      to2: a.position,
+    },
+  }).catch((e) => console.error("[events] createScheduleEvent failed", e));
 
   await notifyWaitlistPromotionsForSchedule({
     scheduleId,

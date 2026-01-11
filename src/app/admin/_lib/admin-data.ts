@@ -18,6 +18,13 @@ type UserRow = Prisma.UserGetPayload<{
   };
 }>;
 
+type EventRow = Prisma.ScheduleEventGetPayload<{
+  include: {
+    actor: { select: { id: true; name: true; email: true } };
+    target: { select: { id: true; name: true; email: true } };
+  };
+}>;
+
 export async function getAdminData(opts?: { signupsScheduleId?: string }) {
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
@@ -91,6 +98,18 @@ export async function getAdminData(opts?: { signupsScheduleId?: string }) {
     },
   });
 
+  const events = signupsSchedule
+    ? await prisma.scheduleEvent.findMany({
+        where: { scheduleId: signupsSchedule.id },
+        include: {
+          actor: { select: { id: true, name: true, email: true } },
+          target: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: [{ createdAt: "desc" }],
+        take: 100,
+      })
+    : [];
+
   return {
     schedules: schedules.map((s: ScheduleRow) => ({
       id: s.id,
@@ -138,6 +157,15 @@ export async function getAdminData(opts?: { signupsScheduleId?: string }) {
       name: u.name,
       roles: u.roles,
       member: u.member,
+    })),
+
+    events: (events as EventRow[]).map((e) => ({
+      id: e.id,
+      createdAt: e.createdAt.toISOString(),
+      type: e.type,
+      actorLabel: e.actor ? e.actor.name ?? e.actor.email ?? e.actor.id : null,
+      targetLabel: e.target ? e.target.name ?? e.target.email ?? e.target.id : null,
+      metadata: e.metadata,
     })),
   };
 }

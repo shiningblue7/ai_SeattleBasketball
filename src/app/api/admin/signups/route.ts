@@ -11,6 +11,8 @@ import {
 } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { normalizeSchedulePositions } from "@/lib/schedulePositions";
+import { createScheduleEvent } from "@/lib/scheduleEvents";
+import { ScheduleEventType } from "@prisma/client";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -65,6 +67,14 @@ export async function POST(req: Request) {
       );
 
       const actorId = session!.user!.id;
+      await createScheduleEvent({
+        scheduleId,
+        type: ScheduleEventType.ADMIN_SIGNUP_LEAVE,
+        actorUserId: actorId,
+        targetUserId: userId,
+        metadata: slot ? ({ slot } as const) : null,
+      }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+
       const actorLabel = session!.user!.name ?? session!.user!.email ?? actorId;
       const targetLabel = user.name ?? user.email ?? user.id;
       await notifyAdminsOfSignupChange({
@@ -107,6 +117,16 @@ export async function POST(req: Request) {
       position: nextPosition,
     },
   });
+
+  {
+    const actorId = session!.user!.id;
+    await createScheduleEvent({
+      scheduleId,
+      type: ScheduleEventType.ADMIN_SIGNUP_JOIN,
+      actorUserId: actorId,
+      targetUserId: userId,
+    }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+  }
 
   {
     const actorId = session!.user!.id;

@@ -31,6 +31,9 @@ model User {
   guestSignUpsFor GuestSignUp[] @relation("GuestFor")
 
   waitlistNotifications WaitlistNotification[]
+
+  scheduleEventsAsActor  ScheduleEvent[] @relation("ScheduleEventActor")
+  scheduleEventsAsTarget ScheduleEvent[] @relation("ScheduleEventTarget")
 }
 
 model Schedule {
@@ -47,6 +50,41 @@ model Schedule {
   guestSignUps GuestSignUp[]
 
   waitlistNotifications WaitlistNotification[]
+
+  events ScheduleEvent[]
+}
+
+enum ScheduleEventType {
+  SIGNUP_JOIN
+  SIGNUP_LEAVE
+  ADMIN_SIGNUP_JOIN
+  ADMIN_SIGNUP_LEAVE
+  GUEST_ADD
+  GUEST_REMOVE
+  SIGNUP_SWAP
+  AVAILABILITY_UPDATE
+  ADMIN_AVAILABILITY_UPDATE
+}
+
+model ScheduleEvent {
+  id         String            @id @default(cuid())
+  createdAt  DateTime          @default(now())
+  scheduleId String
+  type       ScheduleEventType
+
+  actorUserId  String?
+  targetUserId String?
+  guestSignUpId String?
+  signUpId      String?
+
+  metadata Json?
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  actor    User?    @relation("ScheduleEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  target   User?    @relation("ScheduleEventTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([scheduleId, createdAt])
+  @@index([scheduleId, type])
 }
 
 model WaitlistNotification {

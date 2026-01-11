@@ -5,6 +5,8 @@ import type { Prisma } from "@prisma/client";
 import { authOptions } from "@/auth";
 import { requireAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { createScheduleEvent } from "@/lib/scheduleEvents";
+import { ScheduleEventType } from "@prisma/client";
 
 const allowedStatuses = new Set(["FULL", "LATE", "LEAVE_EARLY", "PARTIAL"] as const);
 
@@ -55,7 +57,7 @@ export async function PATCH(req: Request) {
 
   const existing = await prisma.signUp.findUnique({
     where: { id: signUpId },
-    select: { id: true },
+    select: { id: true, scheduleId: true, userId: true },
   });
 
   if (!existing) {
@@ -72,6 +74,15 @@ export async function PATCH(req: Request) {
     },
     select: { id: true },
   } as Prisma.SignUpUpdateArgs);
+
+  await createScheduleEvent({
+    scheduleId: existing.scheduleId,
+    type: ScheduleEventType.ADMIN_AVAILABILITY_UPDATE,
+    actorUserId: session!.user!.id,
+    targetUserId: existing.userId,
+    signUpId,
+    metadata: { attendanceStatus, arriveAt, leaveAt },
+  }).catch((e) => console.error("[events] createScheduleEvent failed", e));
 
   return NextResponse.json({ ok: true });
 }

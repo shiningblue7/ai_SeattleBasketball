@@ -62,6 +62,7 @@ export default async function AdminSignupsPage({
           defaultLeaveAt={data.defaultLeaveAt}
           signUps={data.signUps}
           users={data.users}
+          events={data.events}
         />
       </main>
     </div>

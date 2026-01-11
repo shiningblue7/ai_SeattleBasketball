@@ -7,6 +7,8 @@ import { isAdmin } from "@/lib/authz";
 import { getPlayingKeysForSchedule, notifyWaitlistPromotionsForSchedule } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { normalizeSchedulePositions } from "@/lib/schedulePositions";
+import { createScheduleEvent } from "@/lib/scheduleEvents";
+import { ScheduleEventType } from "@prisma/client";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -85,6 +87,15 @@ export async function POST(req: Request) {
     select: { id: true },
   } as Prisma.GuestSignUpCreateArgs);
 
+  await createScheduleEvent({
+    scheduleId,
+    type: ScheduleEventType.GUEST_ADD,
+    actorUserId: userId,
+    targetUserId: guestOfUserId,
+    guestSignUpId: guest.id,
+    metadata: { guestName },
+  }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+
   return NextResponse.json({ guest });
 }
 
@@ -126,6 +137,14 @@ export async function DELETE(req: Request) {
   const beforePlayingKeys = await getPlayingKeysForSchedule(guest.scheduleId).catch(() => []);
 
   await prisma.guestSignUp.delete({ where: { id: guestSignUpId } });
+
+  await createScheduleEvent({
+    scheduleId: guest.scheduleId,
+    type: ScheduleEventType.GUEST_REMOVE,
+    actorUserId: userId,
+    targetUserId: guest.guestOfUserId,
+    guestSignUpId: guest.id,
+  }).catch((e) => console.error("[events] createScheduleEvent failed", e));
 
   await normalizeSchedulePositions(guest.scheduleId).catch((e) =>
     console.error("[positions] normalizeSchedulePositions failed", e)
