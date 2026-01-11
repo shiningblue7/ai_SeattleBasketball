@@ -410,7 +410,12 @@ export default async function Home() {
               </div>
 
               <div className="sm:col-span-2">
-                {session?.user?.id ? <WaitlistNotifyToggle scheduleId={activeSchedule.id} /> : null}
+                {session?.user?.id ? (
+                  <WaitlistNotifyToggle
+                    key={`${activeSchedule.id}:${items.length}:${limit}`}
+                    scheduleId={activeSchedule.id}
+                  />
+                ) : null}
 
                 {alreadySignedUp && currentUserSignup ? (
                   <SignupAvailability

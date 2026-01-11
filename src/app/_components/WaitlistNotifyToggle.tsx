@@ -63,8 +63,9 @@ export function WaitlistNotifyToggle({ scheduleId }: { scheduleId: string }) {
     }
   };
 
-  if (loading && !eligible && !enabled) return null;
-  if (!eligible) return null;
+  const visible = eligible || enabled;
+  if (loading && !visible) return null;
+  if (!visible) return null;
 
   return (
     <div className="mt-3 flex flex-col gap-2">
@@ -80,6 +81,12 @@ export function WaitlistNotifyToggle({ scheduleId }: { scheduleId: string }) {
       >
         {enabled ? "Notifications ON" : "Notify me if I get a spot"}
       </button>
+
+      {enabled && !eligible ? (
+        <div className="text-xs text-zinc-600">
+          Enabled for this schedule. It will only send if you’re on the waitlist.
+        </div>
+      ) : null}
 
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
     </div>
