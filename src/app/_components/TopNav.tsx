@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
@@ -21,9 +22,20 @@ export function TopNav({ signedIn, isAdmin }: { signedIn: boolean; isAdmin: bool
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-black/80">
-      <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between px-4">
-        <Link href="/" className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-          Seattle Basketball
+      <div className="mx-auto flex h-16 w-full max-w-3xl items-center justify-between px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white p-0.5 shadow-sm dark:border-zinc-700 dark:bg-black">
+            <Image
+              src="/brand/logo-shield-borderless.png"
+              alt="Seattle Basketball logo"
+              width={64}
+              height={64}
+              priority
+            />
+          </div>
+          <div className="text-base font-bold bg-gradient-to-r from-zinc-900 to-zinc-700 bg-clip-text text-transparent dark:from-zinc-100 dark:to-zinc-300">
+            Seattle Basketball
+          </div>
         </Link>
 
         <button

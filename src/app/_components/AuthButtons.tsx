@@ -70,6 +70,13 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
           </button>
           <button
             type="button"
+            className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+            onClick={() => signIn("github", { callbackUrl: "/" })}
+          >
+            Link GitHub
+          </button>
+          <button
+            type="button"
             className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800"
             onClick={() => signOut({ callbackUrl: "/" })}
           >
@@ -84,6 +91,13 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
             onClick={() => signIn("google")}
           >
             Continue with Google
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800"
+            onClick={() => signIn("github")}
+          >
+            Continue with GitHub
           </button>
 
           <div className="w-full rounded-2xl border border-zinc-200 p-4">

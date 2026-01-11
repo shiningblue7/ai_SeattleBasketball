@@ -37,7 +37,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <TopNav signedIn={signedIn} isAdmin={admin} />
-        <div className="pt-14">{children}</div>
+        <div className="pt-16">{children}</div>
       </body>
     </html>
   );
