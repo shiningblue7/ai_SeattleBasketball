@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type UserRow = {
   id: string;
@@ -22,8 +22,10 @@ export function AdminAddToSchedule({
   const [users, setUsers] = useState<UserRow[]>([]);
   const [query, setQuery] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +49,12 @@ export function AdminAddToSchedule({
     [users, selectedUserId]
   );
 
+  const selectedLabel = useMemo(() => {
+    if (!selectedUser) return "";
+    return (selectedUser.name || selectedUser.email || selectedUser.id) +
+      (selectedUser.member ? " (member)" : "");
+  }, [selectedUser]);
+
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -69,6 +77,21 @@ export function AdminAddToSchedule({
 
     return scored.slice(0, 12).map((x) => x.u);
   }, [users, query]);
+
+  const selectUser = (u: UserRow) => {
+    const label = (u.name || u.email || u.id) + (u.member ? " (member)" : "");
+    setSelectedUserId(u.id);
+    setQuery(label);
+    setOpen(false);
+    requestAnimationFrame(() => inputRef.current?.blur());
+  };
+
+  const clearSelection = () => {
+    setSelectedUserId("");
+    setQuery("");
+    setOpen(false);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
 
   const alreadyInSchedule = Boolean(
     selectedUserId && signedUpUserIds.includes(selectedUserId)
@@ -107,16 +130,40 @@ export function AdminAddToSchedule({
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="relative">
             <input
+              ref={inputRef}
               className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
               placeholder="Type a name or email…"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
+                setOpen(true);
                 if (!e.target.value.trim()) setSelectedUserId("");
+              }}
+              onFocus={() => setOpen(true)}
+              onBlur={() => {
+                // Delay closing so taps/clicks on results can register first.
+                window.setTimeout(() => setOpen(false), 120);
               }}
             />
 
-            {query.trim() && filteredUsers.length ? (
+            {selectedUserId ? (
+              <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-semibold text-emerald-900">Selected</div>
+                  <div className="truncate text-sm text-emerald-950">{selectedLabel}</div>
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-emerald-300 bg-white px-3 text-xs font-medium text-emerald-900 hover:bg-emerald-100 disabled:opacity-60"
+                  disabled={busy}
+                  onClick={clearSelection}
+                >
+                  Change
+                </button>
+              </div>
+            ) : null}
+
+            {open && query.trim() && filteredUsers.length ? (
               <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white shadow">
                 {filteredUsers.map((u) => {
                   const label = (u.name || u.email || u.id) + (u.member ? " (member)" : "");
@@ -129,9 +176,10 @@ export function AdminAddToSchedule({
                       className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-zinc-50 ${
                         selected ? "bg-zinc-50" : ""
                       }`}
-                      onClick={() => {
-                        setSelectedUserId(u.id);
-                        setQuery(label);
+                      onPointerDown={(e) => {
+                        // Prevent input blur before we can select (important for mobile).
+                        e.preventDefault();
+                        selectUser(u);
                       }}
                     >
                       <div className="truncate font-medium text-zinc-950">{label}</div>
