@@ -55,6 +55,12 @@ export function AdminAddToSchedule({
       (selectedUser.member ? " (member)" : "");
   }, [selectedUser]);
 
+  const selectedSecondary = useMemo(() => {
+    if (!selectedUser) return null;
+    if (selectedUser.email && selectedUser.name) return selectedUser.email;
+    return null;
+  }, [selectedUser]);
+
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -151,6 +157,9 @@ export function AdminAddToSchedule({
                 <div className="min-w-0">
                   <div className="truncate text-xs font-semibold text-emerald-900">Selected</div>
                   <div className="truncate text-sm text-emerald-950">{selectedLabel}</div>
+                  {selectedSecondary ? (
+                    <div className="truncate text-xs text-emerald-900/80">{selectedSecondary}</div>
+                  ) : null}
                 </div>
                 <button
                   type="button"
