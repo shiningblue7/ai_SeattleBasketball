@@ -36,6 +36,36 @@ type ActiveSchedule = Prisma.ScheduleGetPayload<{
 type SignUpRow = NonNullable<ActiveSchedule>["signUps"][number];
 type GuestRow = NonNullable<ActiveSchedule>["guestSignUps"][number];
 
+function formatGoogleCalendarUtc(dt: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    dt.getUTCFullYear() +
+    pad(dt.getUTCMonth() + 1) +
+    pad(dt.getUTCDate()) +
+    "T" +
+    pad(dt.getUTCHours()) +
+    pad(dt.getUTCMinutes()) +
+    pad(dt.getUTCSeconds()) +
+    "Z"
+  );
+}
+
+function makeGoogleCalendarUrl(input: {
+  title: string;
+  start: Date;
+  end: Date;
+  details?: string;
+}) {
+  const start = formatGoogleCalendarUtc(input.start);
+  const end = formatGoogleCalendarUtc(input.end);
+  const url = new URL("https://calendar.google.com/calendar/render");
+  url.searchParams.set("action", "TEMPLATE");
+  url.searchParams.set("text", input.title);
+  url.searchParams.set("dates", `${start}/${end}`);
+  if (input.details) url.searchParams.set("details", input.details);
+  return url.toString();
+}
+
 type LineItem =
   | {
       kind: "user";
@@ -286,6 +316,30 @@ export default async function Home() {
                   An admin needs to create and activate a schedule.
                 </div>
               )}
+
+              {activeSchedule ? (
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <a
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50"
+                    href={`/api/schedules/${encodeURIComponent(activeSchedule.id)}/ics`}
+                  >
+                    Download ICS
+                  </a>
+                  <a
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50"
+                    href={makeGoogleCalendarUrl({
+                      title: activeSchedule.title,
+                      start: activeSchedule.date,
+                      end: new Date(activeSchedule.date.getTime() + 2 * 60 * 60 * 1000),
+                      details: "Seattle Basketball",
+                    })}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Add to Google Calendar
+                  </a>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
