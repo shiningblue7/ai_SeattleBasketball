@@ -30,13 +30,14 @@ export default async function RootLayout({
   const session = await getServerSession(authOptions);
   const signedIn = Boolean(session?.user?.id);
   const admin = isAdmin(session?.user?.roles ?? null);
+  const userLabel = session?.user?.name ?? session?.user?.email ?? undefined;
 
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TopNav signedIn={signedIn} isAdmin={admin} />
+        <TopNav signedIn={signedIn} isAdmin={admin} userLabel={userLabel} />
         <div className="pt-16">{children}</div>
       </body>
     </html>

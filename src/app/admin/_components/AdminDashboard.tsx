@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AdminSignupAvailability } from "@/app/_components/AdminSignupAvailability";
+import { AdminAddToSchedule } from "@/app/_components/AdminAddToSchedule";
 
 function toDatetimeLocalValue(iso: string) {
   const d = new Date(iso);
@@ -125,6 +126,17 @@ export function AdminDashboard({
 
   const selectedSignupsSchedule = signupsSchedule ?? activeSchedule;
   const activeScheduleId = selectedSignupsSchedule?.id ?? null;
+
+  const currentSignUps = signUps.map((s) => ({
+    id: s.id,
+    userId: s.userId,
+    label: (s.user.name ?? s.user.email ?? "User") + (s.user.member ? " (member)" : ""),
+    position: s.position,
+    attendanceStatus: s.attendanceStatus,
+    attendanceNote: s.attendanceNote,
+    arriveAt: s.arriveAt,
+    leaveAt: s.leaveAt,
+  }));
 
   const signupsScheduleOptions = schedules
     .slice()
@@ -460,6 +472,16 @@ export function AdminDashboard({
             {error ? <div className="text-sm text-red-600">{error}</div> : null}
           </div>
         </div>
+      ) : null}
+
+      {mode === "signups" && activeScheduleId ? (
+        <AdminAddToSchedule
+          scheduleId={activeScheduleId}
+          defaultArriveAt={defaultArriveAt}
+          defaultLeaveAt={defaultLeaveAt}
+          signedUpUserIds={signUps.map((s) => s.userId)}
+          currentSignUps={currentSignUps}
+        />
       ) : null}
 
       {mode === "schedules" ? (

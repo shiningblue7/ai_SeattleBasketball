@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { ActiveScheduleActions } from "@/app/_components/ActiveScheduleActions";
 import { WaitlistNotifyToggle } from "@/app/_components/WaitlistNotifyToggle";
 import { AuthButtons } from "@/app/_components/AuthButtons";
+import { GuestSignUps } from "@/app/_components/GuestSignUps";
 import { SignupAvailability } from "@/app/_components/SignupAvailability";
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
@@ -57,6 +58,16 @@ type LineItem =
     };
 
 type UserLineItem = Extract<LineItem, { kind: "user" }>;
+
+type GuestUiRow = {
+  id: string;
+  guestName: string;
+  position: number;
+  guestOfUserId: string | null;
+  guestOfLabel: string;
+  addedByUserId: string;
+  addedByLabel: string;
+};
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
@@ -221,11 +232,47 @@ export default async function Home() {
     return a.createdAt.getTime() - b.createdAt.getTime();
   });
 
+  const signedIn = Boolean(session?.user);
+
+  const currentUserIndex = userId
+    ? items.findIndex((it) => it.kind === "user" && it.id === currentUserSignup?.id)
+    : -1;
+
+  const playingCount = activeSchedule ? Math.min(limit, items.length) : 0;
+  const waitlistCount = activeSchedule ? Math.max(0, items.length - limit) : 0;
+
+  const currentUserStatus = (() => {
+    if (!activeSchedule || !signedIn || !alreadySignedUp || currentUserIndex < 0) return null;
+    if (currentUserIndex < limit) {
+      return { label: "Playing" as const, detail: null as string | null };
+    }
+    return {
+      label: "Waitlist" as const,
+      detail: `#${currentUserIndex - limit + 1}`,
+    };
+  })();
+
+  const currentUserArriveAt = currentUserSignup ? getArriveAt(currentUserSignup) : null;
+
+  const guestUiRows: GuestUiRow[] = guestSignUps.map((g: GuestRow) => {
+    const guestOfLabel = g.guestOf?.name ?? g.guestOf?.email ?? "unknown";
+    const addedByLabel = g.addedBy.name ?? g.addedBy.email ?? "unknown";
+    return {
+      id: g.id,
+      guestName: g.guestName,
+      position: g.position,
+      guestOfUserId: g.guestOfUserId,
+      guestOfLabel,
+      addedByUserId: g.addedByUserId,
+      addedByLabel,
+    };
+  });
+
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
         <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 dark:bg-black">
-          {session?.user ? (
+          {signedIn ? (
             <div className="flex flex-col gap-2">
               <div className="text-base font-semibold text-zinc-950">
                 {activeSchedule ? activeSchedule.title : "No active schedule"}
@@ -241,15 +288,58 @@ export default async function Home() {
               )}
             </div>
           ) : (
-            <div className="text-center text-sm text-zinc-600">
-              Sign in to view the schedule
+            <div className="flex flex-col gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-semibold text-zinc-950">Seattle Basketball</div>
+                <div className="mt-1 text-sm text-zinc-600">
+                  Sign in to view schedules and sign up
+                </div>
+              </div>
+              <AuthButtons signedIn={false} />
             </div>
           )}
 
-          {activeSchedule && session?.user ? (
+          {activeSchedule && signedIn ? (
             <div className="mt-5 grid gap-6 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <div className="sm:hidden">
+                  <div className="sticky top-20 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                    <ActiveScheduleActions
+                      scheduleId={activeSchedule.id}
+                      signedIn={signedIn}
+                      alreadySignedUp={alreadySignedUp}
+                    />
+                  </div>
+                </div>
+
+                <div className="hidden sm:block">
+                  <ActiveScheduleActions
+                    scheduleId={activeSchedule.id}
+                    signedIn={signedIn}
+                    alreadySignedUp={alreadySignedUp}
+                  />
+                </div>
+
+                {currentUserStatus ? (
+                  <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+                    <div className="text-sm font-medium text-zinc-950">Your status</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-700">
+                      <span className="inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-900">
+                        {currentUserStatus.label}
+                        {currentUserStatus.detail ? ` ${currentUserStatus.detail}` : ""}
+                      </span>
+                      {currentUserArriveAt ? (
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                          Arrive {currentUserArriveAt}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
               <div className="flex flex-col gap-3">
-                <div className="text-sm font-medium text-zinc-950">Playing</div>
+                <div className="text-sm font-medium text-zinc-950">Playing ({playingCount})</div>
                 <ol className="list-decimal pl-5 text-sm text-zinc-800">
                   {items.slice(0, limit).map((it) => (
                     <li key={it.id}>{renderLineItem(it)}</li>
@@ -257,7 +347,7 @@ export default async function Home() {
                 </ol>
               </div>
               <div className="flex flex-col gap-3">
-                <div className="text-sm font-medium text-zinc-950">Waitlist</div>
+                <div className="text-sm font-medium text-zinc-950">Waitlist ({waitlistCount})</div>
                 <ol className="list-decimal pl-5 text-sm text-zinc-800">
                   {items.slice(limit).map((it) => (
                     <li key={it.id}>{renderLineItem(it)}</li>
@@ -266,12 +356,6 @@ export default async function Home() {
               </div>
 
               <div className="sm:col-span-2">
-                <ActiveScheduleActions
-                  scheduleId={activeSchedule.id}
-                  signedIn={Boolean(session?.user)}
-                  alreadySignedUp={alreadySignedUp}
-                />
-
                 {session?.user?.id ? <WaitlistNotifyToggle scheduleId={activeSchedule.id} /> : null}
 
                 {alreadySignedUp && currentUserSignup ? (
@@ -285,13 +369,20 @@ export default async function Home() {
                     initialLeaveAt={getLeaveAt(currentUserSignup)}
                   />
                 ) : null}
+
+                <div className="mt-4">
+                  <GuestSignUps
+                    scheduleId={activeSchedule.id}
+                    signedIn={signedIn}
+                    alreadySignedUp={alreadySignedUp}
+                    isAdmin={admin}
+                    currentUserId={userId ?? null}
+                    guests={guestUiRows}
+                  />
+                </div>
               </div>
             </div>
           ) : null}
-        </div>
-
-        <div className="mt-4">
-          <AuthButtons signedIn={Boolean(session?.user)} />
         </div>
       </div>
     </div>

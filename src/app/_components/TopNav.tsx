@@ -6,7 +6,15 @@ import { usePathname } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
 import { useMemo, useState } from "react";
 
-export function TopNav({ signedIn, isAdmin }: { signedIn: boolean; isAdmin: boolean }) {
+export function TopNav({
+  signedIn,
+  isAdmin,
+  userLabel,
+}: {
+  signedIn: boolean;
+  isAdmin: boolean;
+  userLabel?: string;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -51,6 +59,12 @@ export function TopNav({ signedIn, isAdmin }: { signedIn: boolean; isAdmin: bool
         <div className="border-t border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-black">
           <div className="mx-auto w-full max-w-3xl">
             <nav className="flex flex-col gap-2">
+              {signedIn && userLabel ? (
+                <div className="rounded-xl bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+                  Signed in as <span className="font-medium text-zinc-900 dark:text-zinc-50">{userLabel}</span>
+                </div>
+              ) : null}
+
               {items.map((it) => (
                 <Link
                   key={it.href}
