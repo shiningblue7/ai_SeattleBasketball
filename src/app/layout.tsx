@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { getServerSession } from "next-auth/next";
 import "./globals.css";
 
 import { TopNav } from "@/app/_components/TopNav";
-import { authOptions } from "@/auth";
-import { isAdmin } from "@/lib/authz";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,17 +24,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getServerSession(authOptions);
-  const signedIn = Boolean(session?.user?.id);
-  const admin = isAdmin(session?.user?.roles ?? null);
-  const userLabel = session?.user?.name ?? session?.user?.email ?? undefined;
-
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TopNav signedIn={signedIn} isAdmin={admin} userLabel={userLabel} />
+        <TopNav />
         <div className="pt-16">{children}</div>
       </body>
     </html>

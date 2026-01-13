@@ -4,19 +4,26 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useMemo, useState } from "react";
 
-export function TopNav({
-  signedIn,
-  isAdmin,
-  userLabel,
-}: {
-  signedIn: boolean;
-  isAdmin: boolean;
-  userLabel?: string;
-}) {
+import { isAdmin as isAdminRole } from "@/lib/authz";
+
+export function TopNav(
+  _props: {
+    signedIn?: boolean;
+    isAdmin?: boolean;
+    userLabel?: string;
+  } = {}
+) {
+  void _props;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { data: session } = useSession();
+
+  const signedIn = Boolean(session?.user?.id);
+  const isAdmin = isAdminRole(session?.user?.roles ?? null);
+  const userLabel = session?.user?.name ?? session?.user?.email ?? undefined;
 
   const items = useMemo(() => {
     const base: Array<{ href: string; label: string; show: boolean }> = [
