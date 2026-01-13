@@ -210,6 +210,33 @@ export function AdminDashboard({
     }
   };
 
+  const deleteUser = async (userId: string, label: string) => {
+    const ok = window.confirm(`Delete user: ${label}? This cannot be undone.`);
+    if (!ok) return;
+
+    setError(null);
+    setBusy(true);
+    try {
+      const resp = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!resp.ok) {
+        const data = (await resp.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        setError(data?.error ?? "Failed to delete user");
+        return;
+      }
+
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   useEffect(() => {
     setLimitEdits((prev) => {
       const next: Record<string, number> = { ...prev };
@@ -935,10 +962,11 @@ export function AdminDashboard({
             {users.map((u) => {
               const admin = isAdmin(u.roles);
               const adminNotify = hasRole(u.roles, "admin_notify");
+              const userLabel = u.name ?? u.email ?? u.id;
               return (
                 <div key={u.id} className="flex flex-col gap-2 rounded-xl border border-zinc-100 p-3">
                   <div className="text-sm font-medium text-zinc-950">
-                    {u.name ?? u.email ?? u.id}
+                    {userLabel}
                   </div>
                   <div className="text-xs text-zinc-600">{u.email ?? ""}</div>
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -967,6 +995,14 @@ export function AdminDashboard({
                       onClick={() => setUser(u.id, { member: !u.member })}
                     >
                       {u.member ? "Unset member" : "Set member"}
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-red-300 bg-white px-4 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                      disabled={busy}
+                      onClick={() => deleteUser(u.id, userLabel)}
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>

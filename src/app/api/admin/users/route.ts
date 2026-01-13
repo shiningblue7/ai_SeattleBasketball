@@ -5,6 +5,15 @@ import { authOptions } from "@/auth";
 import { requireAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
+function hasRole(roles: string | null | undefined, role: string): boolean {
+  const needle = role.trim().toLowerCase();
+  return (roles ?? "")
+    .split(",")
+    .map((r) => r.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(needle);
+}
+
 function addRole(roles: string | null | undefined, role: string): string {
   const r = role.trim().toLowerCase();
   const parts = (roles ?? "")
@@ -114,4 +123,57 @@ export async function PATCH(req: Request) {
   });
 
   return NextResponse.json({ user });
+}
+
+export async function DELETE(req: Request) {
+  const session = await getServerSession(authOptions);
+  const gate = requireAdmin(session);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
+
+  const body = (await req.json().catch(() => null)) as
+    | { userId?: string }
+    | null;
+
+  const userId = body?.userId;
+  if (!userId) {
+    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+  }
+
+  const actorId = session?.user?.id ?? null;
+  if (actorId && userId === actorId) {
+    return NextResponse.json(
+      { error: "You cannot delete your own account." },
+      { status: 400 }
+    );
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, roles: true },
+  });
+
+  if (!target) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  if (hasRole(target.roles, "admin")) {
+    const otherAdmins = await prisma.user.count({
+      where: {
+        id: { not: target.id },
+        roles: { contains: "admin" },
+      },
+    });
+
+    if (otherAdmins === 0) {
+      return NextResponse.json(
+        { error: "Cannot delete the last admin user." },
+        { status: 400 }
+      );
+    }
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+  return NextResponse.json({ ok: true });
 }
