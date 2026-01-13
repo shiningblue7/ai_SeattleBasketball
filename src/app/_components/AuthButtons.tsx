@@ -10,10 +10,27 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const requestPasswordReset = async (normalizedEmail: string) => {
+    const resp = await fetch("/api/password-reset/request", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail }),
+    });
+
+    if (!resp.ok) {
+      const data = (await resp.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      throw new Error(data?.error ?? "Failed to request password reset");
+    }
+  };
 
   const onLocalSignIn = async () => {
     setError(null);
+    setInfo(null);
     setLoading(true);
     try {
       const res = await signIn("credentials", {
@@ -23,11 +40,54 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
       });
 
       if (res?.error) {
-        setError("Invalid email or password");
+        if (res.error === "RESET_REQUIRED") {
+          setError("This account must reset its password before signing in.");
+
+          const normalized = email.trim().toLowerCase();
+          if (!normalized) return;
+
+          await requestPasswordReset(normalized)
+            .then(() => {
+              setInfo(
+                "We emailed you a password reset link. Please check your inbox."
+              );
+            })
+            .catch((e) => {
+              setError(
+                e instanceof Error
+                  ? e.message
+                  : "Failed to request password reset"
+              );
+            });
+          return;
+        } else {
+          setError("Invalid email or password");
+        }
         return;
       }
 
       router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onForgotPassword = async () => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      setError("Enter your email first.");
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setLoading(true);
+    try {
+      await requestPasswordReset(normalized);
+      setInfo("If an account exists for that email, a reset link has been sent.");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Failed to request password reset"
+      );
     } finally {
       setLoading(false);
     }
@@ -143,6 +203,10 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
                 <div className="text-sm text-red-600">{error}</div>
               ) : null}
 
+              {info ? (
+                <div className="text-sm text-zinc-700">{info}</div>
+              ) : null}
+
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
@@ -151,6 +215,14 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
                   onClick={onLocalSignIn}
                 >
                   Sign in
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                  disabled={loading}
+                  onClick={onForgotPassword}
+                >
+                  Forgot password
                 </button>
                 <button
                   type="button"

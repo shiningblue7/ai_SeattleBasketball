@@ -20,6 +20,7 @@ declare module "next-auth/adapters" {
   interface AdapterUser {
     roles?: string | null;
     member?: boolean;
+    mustResetPassword?: boolean;
   }
 }
 

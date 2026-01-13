@@ -18,6 +18,8 @@ model User {
 
   passwordHash String? @db.Text
 
+  mustResetPassword Boolean @default(false)
+
   roles  String?
   member Boolean @default(false)
 
@@ -32,8 +34,23 @@ model User {
 
   waitlistNotifications WaitlistNotification[]
 
+  passwordResetTokens PasswordResetToken[]
+
   scheduleEventsAsActor  ScheduleEvent[] @relation("ScheduleEventActor")
   scheduleEventsAsTarget ScheduleEvent[] @relation("ScheduleEventTarget")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  tokenHash String   @unique @db.Text
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Schedule {

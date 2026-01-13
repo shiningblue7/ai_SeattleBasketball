@@ -18,6 +18,7 @@ async function main() {
 
   let scanned = 0;
   let skippedNoEmail = 0;
+  let skippedIgnored = 0;
   let created = 0;
   let updated = 0;
 
@@ -37,6 +38,7 @@ async function main() {
       "image",
       "emailVerified",
       "passwordHash",
+      "subject",
       "roles",
       "member",
     ].filter((c) => columnSet.has(c));
@@ -78,6 +80,18 @@ async function main() {
           continue;
         }
 
+        if (email === "rstefanus@gmail.com" || email === "kevinkaryadi@gmail.com") {
+          skippedIgnored += 1;
+          continue;
+        }
+
+        const subject =
+          typeof u.subject === "string" ? u.subject : u.subject?.toString?.();
+        const mustResetPassword =
+          typeof subject === "string" && subject.toLowerCase().includes("auth0");
+
+        const passwordHash = mustResetPassword ? null : (u.passwordHash ?? null);
+
         const existing = await target.user.findUnique({
           where: { email },
           select: { id: true },
@@ -95,7 +109,8 @@ async function main() {
             name: u.name,
             image: u.image ?? null,
             emailVerified: u.emailVerified ?? null,
-            passwordHash: u.passwordHash,
+            passwordHash,
+            mustResetPassword,
             roles: u.roles,
             member: Boolean(u.member),
           },
@@ -104,7 +119,8 @@ async function main() {
             name: u.name,
             image: u.image ?? null,
             emailVerified: u.emailVerified ?? null,
-            passwordHash: u.passwordHash,
+            passwordHash,
+            mustResetPassword,
             roles: u.roles,
             member: Boolean(u.member),
           },
@@ -129,6 +145,7 @@ async function main() {
         dryRun,
         scanned,
         skippedNoEmail,
+        skippedIgnored,
         created,
         updated,
       },

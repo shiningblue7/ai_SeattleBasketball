@@ -68,6 +68,10 @@ export const authOptions: NextAuthOptions = {
           where: { email },
         });
 
+        if ((user as typeof user & { mustResetPassword?: boolean })?.mustResetPassword) {
+          throw new Error("RESET_REQUIRED");
+        }
+
         if (!user?.passwordHash) return null;
 
         const ok = await compare(password, user.passwordHash);
