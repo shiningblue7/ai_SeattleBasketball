@@ -33,6 +33,33 @@ export type SignupSlot =
   | { kind: "playing"; overall: number; within: number; limit: number }
   | { kind: "waitlist"; overall: number; within: number; limit: number };
 
+function mergeByPosition<
+  A extends { position: number; createdAt: Date },
+  B extends { position: number; createdAt: Date },
+>(a: A[], b: B[]): Array<A | B> {
+  const out: Array<A | B> = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i >= a.length) {
+      out.push(b[j++]!);
+      continue;
+    }
+    if (j >= b.length) {
+      out.push(a[i++]!);
+      continue;
+    }
+    const left = a[i]!;
+    const right = b[j]!;
+    if (left.position !== right.position) {
+      out.push(left.position < right.position ? a[i++]! : b[j++]!);
+      continue;
+    }
+    out.push(left.createdAt.getTime() <= right.createdAt.getTime() ? a[i++]! : b[j++]!);
+  }
+  return out;
+}
+
 function hasRole(roles: string | null | undefined, role: string): boolean {
   const needle = role.trim().toLowerCase();
   return (roles ?? "")
@@ -48,37 +75,40 @@ export async function getSignupSlotForUser(
 ): Promise<SignupSlot | null> {
   const schedule = await prisma.schedule.findUnique({
     where: { id: scheduleId },
-    select: {
-      limit: true,
-      signUps: { select: { userId: true, position: true, createdAt: true } },
-      guestSignUps: { select: { position: true, createdAt: true } },
-    },
+    select: { limit: true },
   });
 
   if (!schedule) return null;
 
-  const combined = [
-    ...schedule.signUps.map((s) => ({
-      kind: "user" as const,
-      userId: s.userId,
-      position: s.position,
-      createdAt: s.createdAt,
-    })),
-    ...schedule.guestSignUps.map((g) => ({
-      kind: "guest" as const,
-      userId: null,
-      position: g.position,
-      createdAt: g.createdAt,
-    })),
-  ].sort((a, b) => {
-    if (a.position !== b.position) return a.position - b.position;
-    return a.createdAt.getTime() - b.createdAt.getTime();
+  const me = await prisma.signUp.findUnique({
+    where: { scheduleId_userId: { scheduleId, userId } },
+    select: { position: true, createdAt: true },
   });
 
-  const idx = combined.findIndex((x) => x.kind === "user" && x.userId === userId);
-  if (idx < 0) return null;
+  if (!me) return null;
 
-  const overall = idx + 1;
+  const [beforeUsers, beforeGuests] = await prisma.$transaction([
+    prisma.signUp.count({
+      where: {
+        scheduleId,
+        OR: [
+          { position: { lt: me.position } },
+          { position: me.position, createdAt: { lt: me.createdAt } },
+        ],
+      },
+    }),
+    prisma.guestSignUp.count({
+      where: {
+        scheduleId,
+        OR: [
+          { position: { lt: me.position } },
+          { position: me.position, createdAt: { lt: me.createdAt } },
+        ],
+      },
+    }),
+  ]);
+
+  const overall = beforeUsers + beforeGuests + 1;
   const limit = schedule.limit;
   if (overall <= limit) {
     return { kind: "playing", overall, within: overall, limit };
@@ -138,23 +168,6 @@ async function getPlayingSet(scheduleId: string): Promise<{
       title: true,
       date: true,
       limit: true,
-      signUps: {
-        select: {
-          userId: true,
-          position: true,
-          createdAt: true,
-          user: { select: { name: true, email: true } },
-        },
-      },
-      guestSignUps: {
-        select: {
-          id: true,
-          guestName: true,
-          guestOfUserId: true,
-          position: true,
-          createdAt: true,
-        },
-      },
     },
   });
 
@@ -162,36 +175,60 @@ async function getPlayingSet(scheduleId: string): Promise<{
     return { schedule: null, playing: [] };
   }
 
-  const combined = [
-    ...schedule.signUps.map((s) => ({
-      kind: "user" as const,
-      key: `u:${s.userId}`,
-      ownerUserId: s.userId,
-      label: s.user.name ?? s.user.email ?? "User",
-      position: s.position,
-      createdAt: s.createdAt,
-    })),
-    ...schedule.guestSignUps.map((g) => ({
-      kind: "guest" as const,
-      key: `g:${g.id}`,
-      ownerUserId: g.guestOfUserId ?? null,
-      label: g.guestName,
-      position: g.position,
-      createdAt: g.createdAt,
-    })),
-  ].sort((a, b) => {
-    if (a.position !== b.position) return a.position - b.position;
-    return a.createdAt.getTime() - b.createdAt.getTime();
-  });
+  const limit = schedule.limit;
+  const [signUps, guestSignUps] = await prisma.$transaction([
+    prisma.signUp.findMany({
+      where: { scheduleId },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      take: limit,
+      select: {
+        userId: true,
+        position: true,
+        createdAt: true,
+        user: { select: { name: true, email: true } },
+      },
+    }),
+    prisma.guestSignUp.findMany({
+      where: { scheduleId },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      take: limit,
+      select: {
+        id: true,
+        guestName: true,
+        guestOfUserId: true,
+        position: true,
+        createdAt: true,
+      },
+    }),
+  ]);
 
-  const playingRaw = combined.slice(0, schedule.limit);
+  const userEntities = signUps.map((s) => ({
+    kind: "user" as const,
+    key: `u:${s.userId}`,
+    ownerUserId: s.userId,
+    label: s.user.name ?? s.user.email ?? "User",
+    position: s.position,
+    createdAt: s.createdAt,
+  }));
+
+  const guestEntities = guestSignUps.map((g) => ({
+    kind: "guest" as const,
+    key: `g:${g.id}`,
+    ownerUserId: g.guestOfUserId ?? null,
+    label: g.guestName,
+    position: g.position,
+    createdAt: g.createdAt,
+  }));
+
+  const combined = mergeByPosition(userEntities, guestEntities);
+  const playingRaw = combined.slice(0, limit);
   const playing: PlayingEntity[] = playingRaw.map((it, idx) => ({
     ...it,
     overall: idx + 1,
   }));
 
   return {
-    schedule: { id: schedule.id, title: schedule.title, date: schedule.date, limit: schedule.limit },
+    schedule: { id: schedule.id, title: schedule.title, date: schedule.date, limit },
     playing,
   };
 }

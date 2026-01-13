@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       }).catch((e) => console.error("[events] createScheduleEvent failed", e));
 
       const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
-      await notifyAdminsOfSignupChange({
+      void notifyAdminsOfSignupChange({
         action: "leave",
         schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
         actor: { id: userId, label: actorLabel },
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         slot,
       }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
 
-      await notifyWaitlistPromotionsForSchedule({
+      void notifyWaitlistPromotionsForSchedule({
         scheduleId,
         beforePlayingKeys,
       }).catch((e) => console.error("[email] notifyWaitlistPromotionsForSchedule failed", e));
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
 
   {
     const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
-    await notifyAdminsOfSignupChange({
+    void notifyAdminsOfSignupChange({
       action: "join",
       schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
       actor: { id: userId, label: actorLabel },
