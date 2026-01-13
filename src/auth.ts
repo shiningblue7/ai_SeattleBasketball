@@ -83,30 +83,41 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: "database",
+    strategy: "jwt",
   },
   callbacks: {
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-        session.user.roles = user.roles;
-        session.user.member = user.member;
-      }
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.roles = (user as typeof user & { roles?: string | null }).roles ?? null;
+        token.member = (user as typeof user & { member?: boolean }).member ?? undefined;
 
-      const adminEmails = parseAdminEmails(process.env.ADMIN_EMAILS);
-      const email = user.email?.toLowerCase() ?? null;
+        const currentRoles = (token.roles as string | null | undefined) ?? null;
 
-      if (email && adminEmails.has(email) && !hasAdminRole(user.roles)) {
-        const updated = await prisma.user.update({
-          where: { id: user.id },
-          data: { roles: addAdminRole(user.roles) },
-        });
+        const adminEmails = parseAdminEmails(process.env.ADMIN_EMAILS);
+        const email = user.email?.toLowerCase() ?? null;
 
-        if (session.user) {
-          session.user.roles = updated.roles;
+        if (email && adminEmails.has(email) && !hasAdminRole(currentRoles)) {
+          const updated = await prisma.user
+            .update({
+              where: { id: user.id },
+              data: { roles: addAdminRole(currentRoles) },
+              select: { roles: true },
+            })
+            .catch(() => null);
+
+          if (updated) token.roles = updated.roles ?? null;
         }
       }
 
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = (token.id as string) ?? "";
+        session.user.roles = (token.roles as string | null | undefined) ?? null;
+        session.user.member = (token.member as boolean | undefined) ?? undefined;
+      }
       return session;
     },
   },
