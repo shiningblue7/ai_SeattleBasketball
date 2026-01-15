@@ -198,16 +198,16 @@ export default async function Home() {
   };
 
   const renderLineItem = (it: LineItem) => {
-    if (it.kind === "guest") return it.label;
+    if (it.kind === "guest") return <span className="text-zinc-800 dark:text-zinc-300">{it.label}</span>;
 
     const details = buildDetailsText(it);
 
     return (
       <div className="-ml-1">
         <div className="flex flex-wrap items-center">
-          <span className="ml-1">{it.name}</span>
+          <span className="ml-1 text-zinc-800 dark:text-zinc-200">{it.name}</span>
           {admin && it.member ? (
-            <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+            <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
               MEMBER
             </span>
           ) : null}
@@ -216,14 +216,14 @@ export default async function Home() {
 
         {details ? (
           <>
-            <div className="ml-1 mt-0.5 hidden text-xs text-zinc-600 sm:block">
+            <div className="ml-1 mt-0.5 hidden text-xs text-zinc-600 dark:text-zinc-400 sm:block">
               {details}
             </div>
             <details className="ml-1 mt-0.5 sm:hidden">
-              <summary className="cursor-pointer select-none text-xs text-zinc-500">
+              <summary className="cursor-pointer select-none text-xs text-zinc-500 dark:text-zinc-400">
                 details
               </summary>
-              <div className="mt-1 text-xs text-zinc-600">{details}</div>
+              <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{details}</div>
             </details>
           </>
         ) : null}
@@ -357,7 +357,7 @@ export default async function Home() {
             <div className="mt-5 grid gap-6 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <div className="sm:hidden">
-                  <div className="sticky top-20 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                  <div className="sticky top-20 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                     <ActiveScheduleActions
                       scheduleId={activeSchedule.id}
                       signedIn={signedIn}
@@ -375,15 +375,15 @@ export default async function Home() {
                 </div>
 
                 {currentUserStatus ? (
-                  <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
-                    <div className="text-sm font-medium text-zinc-950">Your status</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-700">
-                      <span className="inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-900">
+                  <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                    <div className="text-sm font-medium text-zinc-950 dark:text-zinc-50">Your status</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                      <span className="inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-900 dark:bg-slate-700 dark:text-zinc-100">
                         {currentUserStatus.label}
                         {currentUserStatus.detail ? ` ${currentUserStatus.detail}` : ""}
                       </span>
                       {currentUserArriveAt ? (
-                        <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900 dark:bg-amber-900 dark:text-amber-100">
                           Arrive {currentUserArriveAt}
                         </span>
                       ) : null}
@@ -393,16 +393,16 @@ export default async function Home() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <div className="text-sm font-medium text-zinc-950">Playing ({playingCount})</div>
-                <ol className="list-decimal pl-5 text-sm text-zinc-800">
+                <div className="text-sm font-medium text-zinc-950 dark:text-zinc-50">Playing ({playingCount})</div>
+                <ol className="list-decimal pl-5 text-sm text-zinc-800 dark:text-zinc-200">
                   {items.slice(0, limit).map((it) => (
                     <li key={it.id}>{renderLineItem(it)}</li>
                   ))}
                 </ol>
               </div>
               <div className="flex flex-col gap-3">
-                <div className="text-sm font-medium text-zinc-950">Waitlist ({waitlistCount})</div>
-                <ol className="list-decimal pl-5 text-sm text-zinc-800">
+                <div className="text-sm font-medium text-zinc-950 dark:text-zinc-50">Waitlist ({waitlistCount})</div>
+                <ol className="list-decimal pl-5 text-sm text-zinc-800 dark:text-zinc-200">
                   {items.slice(limit).map((it) => (
                     <li key={it.id}>{renderLineItem(it)}</li>
                   ))}
