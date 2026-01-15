@@ -439,28 +439,28 @@ export function AdminDashboard({
   return (
     <div className="flex w-full flex-col gap-8">
       {mode === "schedules" ? (
-        <div className="rounded-2xl border border-zinc-200 p-6">
-          <div className="text-lg font-semibold text-zinc-950">Create schedule</div>
+        <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
+          <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Create schedule</div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <label htmlFor="schedule-title" className="text-xs font-medium text-zinc-700">
+              <label htmlFor="schedule-title" className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Title
               </label>
               <input
                 id="schedule-title"
-                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="schedule-datetime" className="text-xs font-medium text-zinc-700">
+              <label htmlFor="schedule-datetime" className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Date & time
               </label>
               <input
                 id="schedule-datetime"
-                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
                 type="datetime-local"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
@@ -468,12 +468,12 @@ export function AdminDashboard({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="schedule-limit" className="text-xs font-medium text-zinc-700">
+              <label htmlFor="schedule-limit" className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Player limit
               </label>
               <input
                 id="schedule-limit"
-                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
                 type="number"
                 min={1}
                 value={limit}
@@ -482,12 +482,12 @@ export function AdminDashboard({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="schedule-repeat-weeks" className="text-xs font-medium text-zinc-700">
+              <label htmlFor="schedule-repeat-weeks" className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Weeks to create
               </label>
               <input
                 id="schedule-repeat-weeks"
-                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+                className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
                 type="number"
                 min={1}
                 max={52}
@@ -498,8 +498,8 @@ export function AdminDashboard({
             </div>
 
             <div className="flex flex-col gap-1 sm:col-span-2">
-              <div className="text-xs font-medium text-zinc-700">Active</div>
-              <label className="flex items-center gap-2 text-sm text-zinc-700">
+              <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Active</div>
+              <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                 <input
                   type="checkbox"
                   checked={active}
@@ -508,7 +508,7 @@ export function AdminDashboard({
                 Make the first created schedule active
               </label>
             </div>
-            <div className="text-xs text-zinc-600 sm:col-span-2">
+            <div className="text-xs text-zinc-600 dark:text-zinc-400 sm:col-span-2">
               Create weekly schedules ahead: sets the first one active (if checked) and creates the rest inactive.
             </div>
           </div>
@@ -516,7 +516,7 @@ export function AdminDashboard({
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-sky-600 dark:hover:bg-sky-700"
               disabled={busy}
               onClick={createSchedule}
             >
@@ -528,21 +528,21 @@ export function AdminDashboard({
       ) : null}
 
       {mode === "signups" ? (
-        <details className="rounded-2xl border border-zinc-200 p-6">
-          <summary className="cursor-pointer select-none text-lg font-semibold text-zinc-950">
+        <details className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
+          <summary className="cursor-pointer select-none text-lg font-semibold text-zinc-950 dark:text-zinc-50">
             History
           </summary>
           <div className="mt-4 grid gap-2">
             {(events ?? []).length === 0 ? (
-              <div className="text-sm text-zinc-600">No history yet.</div>
+              <div className="text-sm text-zinc-600 dark:text-zinc-400">No history yet.</div>
             ) : (
               (events ?? []).map((e) => (
-                <div key={e.id} className="rounded-xl border border-zinc-100 p-3">
+                <div key={e.id} className="rounded-xl border border-zinc-100 p-3 dark:border-slate-600 dark:bg-slate-700">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-medium text-zinc-950">{formatEventType(e.type)}</div>
-                    <div className="text-xs text-zinc-600">{formatEventTime(e.createdAt)}</div>
+                    <div className="text-sm font-medium text-zinc-950 dark:text-zinc-100">{formatEventType(e.type)}</div>
+                    <div className="text-xs text-zinc-600 dark:text-zinc-400">{formatEventTime(e.createdAt)}</div>
                   </div>
-                  <div className="mt-1 text-xs text-zinc-600">
+                  <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                     {e.actorLabel ? `By ${e.actorLabel}` : ""}
                     {e.targetLabel ? ` · Target ${e.targetLabel}` : ""}
                   </div>
@@ -561,13 +561,13 @@ export function AdminDashboard({
       ) : null}
 
       {mode === "schedules" ? (
-        <div className="rounded-2xl border border-zinc-200 p-6">
+        <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-lg font-semibold text-zinc-950">Schedules</div>
+            <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Schedules</div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
                 disabled={busy}
                 onClick={() => {
                   setShowArchived((v) => !v);
@@ -817,11 +817,11 @@ export function AdminDashboard({
       ) : null}
 
       {mode === "signups" ? (
-        <div className="rounded-2xl border border-zinc-200 p-6">
-          <div className="text-lg font-semibold text-zinc-950">Schedule</div>
+        <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
+          <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Schedule</div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <select
-              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
               value={selectedSignupsSchedule?.id ?? ""}
               onChange={(e) => {
                 const nextId = e.target.value;
@@ -841,8 +841,8 @@ export function AdminDashboard({
       ) : null}
 
       {mode === "signups" ? (
-        <div className="rounded-2xl border border-zinc-200 p-6">
-          <div className="text-lg font-semibold text-zinc-950">Active signups</div>
+        <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
+          <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Active signups</div>
           {selectedSignupsSchedule ? (
             <>
               <div className="mt-1 text-sm text-zinc-600">
@@ -911,8 +911,8 @@ export function AdminDashboard({
       ) : null}
 
       {mode === "signups" ? (
-        <div className="rounded-2xl border border-zinc-200 p-6">
-          <div className="text-lg font-semibold text-zinc-950">Add guest</div>
+        <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
+          <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Add guest</div>
           {activeScheduleId ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <select
@@ -956,8 +956,8 @@ export function AdminDashboard({
       ) : null}
 
       {mode === "users" ? (
-        <div className="rounded-2xl border border-zinc-200 p-6">
-          <div className="text-lg font-semibold text-zinc-950">Users</div>
+        <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
+          <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Users</div>
           <div className="mt-4 grid gap-2">
             {users.map((u) => {
               const admin = isAdmin(u.roles);
