@@ -53,7 +53,7 @@ export function ActiveScheduleActions({
       {alreadySignedUp ? (
         <button
           type="button"
-          className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
           disabled={loading}
           onClick={() => mutate("leave")}
         >
@@ -62,7 +62,7 @@ export function ActiveScheduleActions({
       ) : (
         <button
           type="button"
-          className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center rounded-full bg-sky-500 px-6 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-60"
           disabled={loading}
           onClick={() => mutate("join")}
         >

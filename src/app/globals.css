@@ -3,6 +3,25 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --surface: #f8fafc;
+  --surface-secondary: #f1f5f9;
+  --border: #e2e8f0;
+  --accent: #0ea5e9;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0f172a;
+    --foreground: #f8fafc;
+    --surface: #1e293b;
+    --surface-secondary: #334155;
+    --border: #475569;
+    --accent: #38bdf8;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+  }
 }
 
 @theme inline {

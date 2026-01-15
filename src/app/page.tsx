@@ -299,20 +299,20 @@ export default async function Home() {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
+    <div className="min-h-screen bg-background font-sans">
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
-        <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 dark:bg-black">
+        <div className="w-full rounded-2xl border border-border bg-surface p-6 dark:bg-surface">
           {signedIn ? (
             <div className="flex flex-col gap-2">
-              <div className="text-base font-semibold text-zinc-950">
+              <div className="text-base font-semibold text-foreground">
                 {activeSchedule ? activeSchedule.title : "No active schedule"}
               </div>
               {activeSchedule ? (
-                <div className="text-sm text-zinc-600">
+                <div className="text-sm text-text-secondary">
                   {activeSchedule.date.toLocaleString()} · Limit {limit}
                 </div>
               ) : (
-                <div className="text-sm text-zinc-600">
+                <div className="text-sm text-text-secondary">
                   An admin needs to create and activate a schedule.
                 </div>
               )}
@@ -320,13 +320,13 @@ export default async function Home() {
               {activeSchedule ? (
                 <div className="mt-1 flex flex-wrap gap-2">
                   <a
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-surface-secondary px-4 text-xs font-medium text-foreground hover:bg-surface"
                     href={`/api/schedules/${encodeURIComponent(activeSchedule.id)}/ics`}
                   >
                     Download ICS
                   </a>
                   <a
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-surface-secondary px-4 text-xs font-medium text-foreground hover:bg-surface"
                     href={makeGoogleCalendarUrl({
                       title: activeSchedule.title,
                       start: activeSchedule.date,
@@ -344,8 +344,8 @@ export default async function Home() {
           ) : (
             <div className="flex flex-col gap-4">
               <div className="text-center">
-                <div className="text-2xl font-semibold text-zinc-950">Seattle Basketball</div>
-                <div className="mt-1 text-sm text-zinc-600">
+                <div className="text-2xl font-semibold text-foreground">Seattle Basketball</div>
+                <div className="mt-1 text-sm text-text-secondary">
                   Sign in to view schedules and sign up
                 </div>
               </div>
