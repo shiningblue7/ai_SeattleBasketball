@@ -845,7 +845,7 @@ export function AdminDashboard({
           <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Active signups</div>
           {selectedSignupsSchedule ? (
             <>
-              <div className="mt-1 text-sm text-zinc-600">
+              <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                 {selectedSignupsSchedule.title} · {formatScheduleDateLong(selectedSignupsSchedule.date)} · Limit {selectedSignupsSchedule.limit}
               </div>
               <div className="mt-4 grid gap-2">
@@ -855,13 +855,13 @@ export function AdminDashboard({
                   .map((s, idx, arr) => (
                     <div
                       key={s.id}
-                      className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-600 dark:bg-slate-700"
                     >
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-zinc-950">
+                        <div className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-100">
                           {s.user.name ?? s.user.email ?? "User"}{s.user.member ? " (member)" : ""}
                         </div>
-                        <div className="text-xs text-zinc-600">order {idx + 1}</div>
+                        <div className="text-xs text-zinc-600 dark:text-zinc-400">order {idx + 1}</div>
                       </div>
                       <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
                         <div className="w-full sm:w-56">
@@ -877,7 +877,7 @@ export function AdminDashboard({
                         </div>
                         <button
                           type="button"
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
                           disabled={busy}
                           onClick={() => removeSignup(s.userId)}
                         >
@@ -885,7 +885,7 @@ export function AdminDashboard({
                         </button>
                         <button
                           type="button"
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
                           disabled={busy || idx === 0}
                           onClick={() => swap(arr[idx - 1].id, s.id)}
                         >
@@ -893,7 +893,7 @@ export function AdminDashboard({
                         </button>
                         <button
                           type="button"
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
                           disabled={busy || idx === arr.length - 1}
                           onClick={() => swap(s.id, arr[idx + 1].id)}
                         >
@@ -905,7 +905,7 @@ export function AdminDashboard({
               </div>
             </>
           ) : (
-            <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
+            <div className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">No active schedule.</div>
           )}
         </div>
       ) : null}
@@ -964,15 +964,15 @@ export function AdminDashboard({
               const adminNotify = hasRole(u.roles, "admin_notify");
               const userLabel = u.name ?? u.email ?? u.id;
               return (
-                <div key={u.id} className="flex flex-col gap-2 rounded-xl border border-zinc-100 p-3">
-                  <div className="text-sm font-medium text-zinc-950">
+                <div key={u.id} className="flex flex-col gap-2 rounded-xl border border-zinc-100 p-3 dark:border-slate-600 dark:bg-slate-700">
+                  <div className="text-sm font-medium text-zinc-950 dark:text-zinc-100">
                     {userLabel}
                   </div>
-                  <div className="text-xs text-zinc-600">{u.email ?? ""}</div>
+                  <div className="text-xs text-zinc-600 dark:text-zinc-400">{u.email ?? ""}</div>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <button
                       type="button"
-                      className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
                       disabled={busy}
                       onClick={() => setUser(u.id, { setAdmin: !admin })}
                     >
