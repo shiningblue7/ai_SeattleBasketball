@@ -210,7 +210,7 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
-                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-sky-600 dark:hover:bg-sky-700"
                   disabled={loading}
                   onClick={onLocalSignIn}
                 >
@@ -218,7 +218,7 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
                   disabled={loading}
                   onClick={onForgotPassword}
                 >
@@ -226,7 +226,7 @@ export function AuthButtons({ signedIn }: { signedIn: boolean }) {
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
+                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
                   disabled={loading}
                   onClick={onRegister}
                 >
