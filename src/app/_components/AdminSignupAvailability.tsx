@@ -92,13 +92,13 @@ export function AdminSignupAvailability({
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input
           type="time"
-          className="h-9 w-full rounded-xl border border-zinc-300 px-3 text-xs"
+          className="h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
           value={arriveAt}
           onChange={(e) => setArriveAt(e.target.value)}
         />
         <input
           type="time"
-          className="h-9 w-full rounded-xl border border-zinc-300 px-3 text-xs"
+          className="h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
           value={leaveAt}
           onChange={(e) => setLeaveAt(e.target.value)}
         />
