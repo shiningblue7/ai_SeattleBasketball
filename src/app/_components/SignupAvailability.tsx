@@ -100,7 +100,7 @@ export function SignupAvailability({
             <div className="mb-1 text-xs font-medium text-zinc-700">Arrive at (optional)</div>
             <input
               type="time"
-              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
               value={arriveAt}
               onChange={(e) => setArriveAt(e.target.value)}
             />
@@ -109,7 +109,7 @@ export function SignupAvailability({
             <div className="mb-1 text-xs font-medium text-zinc-700">Leave at (optional)</div>
             <input
               type="time"
-              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
               value={leaveAt}
               onChange={(e) => setLeaveAt(e.target.value)}
             />
@@ -117,7 +117,7 @@ export function SignupAvailability({
         </div>
 
         <select
-          className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+          className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
           value={status}
           onChange={(e) => setStatus(e.target.value as AttendanceStatus)}
         >
@@ -128,7 +128,7 @@ export function SignupAvailability({
         </select>
 
         <input
-          className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+          className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
           placeholder='Optional note (e.g. "arrive 7:30" / "leave at half")'
           value={note}
           onChange={(e) => setNote(e.target.value)}

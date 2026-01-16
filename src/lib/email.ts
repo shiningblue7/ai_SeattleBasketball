@@ -117,6 +117,10 @@ export async function getSignupSlotForUser(
 }
 
 async function sendWithResend(payload: EmailPayload) {
+  if (process.env.SKIP_EMAILS === "true") {
+    console.log("[email] SKIP_EMAILS enabled", { toCount: payload.to.length });
+    return;
+  }
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY is not set");

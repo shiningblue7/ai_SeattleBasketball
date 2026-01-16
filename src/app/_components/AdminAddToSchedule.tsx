@@ -137,7 +137,7 @@ export function AdminAddToSchedule({
           <div className="relative">
             <input
               ref={inputRef}
-              className="h-11 w-full rounded-xl border border-zinc-300 px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
               placeholder="Type a name or email…"
               value={query}
               onChange={(e) => {
