@@ -5,41 +5,12 @@ import { useEffect, useState } from "react";
 
 import { AdminSignupAvailability } from "@/app/_components/AdminSignupAvailability";
 import { AdminAddToSchedule } from "@/app/_components/AdminAddToSchedule";
-
-function toDatetimeLocalValue(iso: string) {
-  const d = new Date(iso);
-  const tzOffsetMs = d.getTimezoneOffset() * 60_000;
-  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
-}
-
-function formatScheduleDateLong(iso: string) {
-  const d = new Date(iso);
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-}
-
-function nextWednesdayAt7pmLocal(now: Date = new Date()) {
-  const targetDow = 3;
-  const candidate = new Date(now);
-  candidate.setHours(19, 0, 0, 0);
-
-  const day = candidate.getDay();
-  const daysUntil = (targetDow - day + 7) % 7;
-  candidate.setDate(candidate.getDate() + daysUntil);
-
-  if (daysUntil === 0 && now.getTime() > candidate.getTime()) {
-    candidate.setDate(candidate.getDate() + 7);
-  }
-
-  const tzOffsetMs = candidate.getTimezoneOffset() * 60_000;
-  return new Date(candidate.getTime() - tzOffsetMs).toISOString().slice(0, 16);
-}
+import {
+  formatScheduleDateTimeLong,
+  nextWednesdayAt7pmScheduleLocal,
+  scheduleDatetimeLocalToIso,
+  toScheduleDatetimeLocalValue,
+} from "@/lib/time";
 
 const SCHEDULES_PAGE_SIZE = 4;
 
@@ -128,7 +99,7 @@ export function AdminDashboard({
 }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(() => nextWednesdayAt7pmLocal());
+  const [date, setDate] = useState(() => nextWednesdayAt7pmScheduleLocal());
   const [limit, setLimit] = useState(15);
   const [active, setActive] = useState(true);
   const [repeatWeeksInput, setRepeatWeeksInput] = useState("1");
@@ -257,7 +228,7 @@ export function AdminDashboard({
     setDateEdits((prev) => {
       const next: Record<string, string> = { ...prev };
       for (const s of schedules) {
-        if (typeof next[s.id] !== "string") next[s.id] = toDatetimeLocalValue(s.date);
+        if (typeof next[s.id] !== "string") next[s.id] = toScheduleDatetimeLocalValue(s.date);
       }
       return next;
     });
@@ -319,7 +290,7 @@ export function AdminDashboard({
 
   const cancelEditSchedule = (s: ScheduleRow) => {
     setTitleEdits((prev) => ({ ...prev, [s.id]: s.title }));
-    setDateEdits((prev) => ({ ...prev, [s.id]: toDatetimeLocalValue(s.date) }));
+    setDateEdits((prev) => ({ ...prev, [s.id]: toScheduleDatetimeLocalValue(s.date) }));
     setLimitEdits((prev) => ({ ...prev, [s.id]: s.limit }));
     setEditingScheduleId(null);
   };
@@ -332,7 +303,7 @@ export function AdminDashboard({
     setError(null);
     setBusy(true);
     try {
-      const dateIso = date ? new Date(date).toISOString() : "";
+      const dateIso = date ? scheduleDatetimeLocalToIso(date) : "";
 
       const resp = await fetch("/api/admin/schedules", {
         method: "POST",
@@ -659,7 +630,7 @@ export function AdminDashboard({
                               id={`schedule-date-${s.id}`}
                               className="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 [color-scheme:light] dark:bg-white dark:text-zinc-900 dark:placeholder:text-zinc-500"
                               type="datetime-local"
-                              value={dateEdits[s.id] ?? toDatetimeLocalValue(s.date)}
+                              value={dateEdits[s.id] ?? toScheduleDatetimeLocalValue(s.date)}
                               disabled={editsDisabled}
                               onChange={(e) =>
                                 setDateEdits((prev) => ({
@@ -676,7 +647,7 @@ export function AdminDashboard({
                             {s.title}
                           </div>
                           <div className="text-sm text-zinc-600">
-                            {formatScheduleDateLong(s.date)}
+                            {formatScheduleDateTimeLong(s.date)}
                           </div>
                           <div className="text-xs text-zinc-600">Limit {s.limit}</div>
                         </>
@@ -730,15 +701,15 @@ export function AdminDashboard({
                               busy ||
                               ((limitEdits[s.id] ?? s.limit) === s.limit &&
                                 (titleEdits[s.id] ?? s.title) === s.title &&
-                                (dateEdits[s.id] ?? toDatetimeLocalValue(s.date)) ===
-                                  toDatetimeLocalValue(s.date))
+                                (dateEdits[s.id] ?? toScheduleDatetimeLocalValue(s.date)) ===
+                                  toScheduleDatetimeLocalValue(s.date))
                             }
                             onClick={async () => {
                               await updateSchedule(s.id, {
                                 limit: limitEdits[s.id] ?? s.limit,
                                 title: titleEdits[s.id] ?? s.title,
                                 date: dateEdits[s.id]
-                                  ? new Date(dateEdits[s.id]).toISOString()
+                                  ? scheduleDatetimeLocalToIso(dateEdits[s.id])
                                   : s.date,
                               });
                               setEditingScheduleId(null);
@@ -832,7 +803,7 @@ export function AdminDashboard({
               {signupsScheduleOptions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.active ? "(Active) " : ""}
-                  {s.title} · {formatScheduleDateLong(s.date)}
+                  {s.title} · {formatScheduleDateTimeLong(s.date)}
                 </option>
               ))}
             </select>
@@ -846,7 +817,7 @@ export function AdminDashboard({
           {selectedSignupsSchedule ? (
             <>
               <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                {selectedSignupsSchedule.title} · {formatScheduleDateLong(selectedSignupsSchedule.date)} · Limit {selectedSignupsSchedule.limit}
+                {selectedSignupsSchedule.title} · {formatScheduleDateTimeLong(selectedSignupsSchedule.date)} · Limit {selectedSignupsSchedule.limit}
               </div>
               <div className="mt-4 grid gap-2">
                 {signUps

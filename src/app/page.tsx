@@ -9,6 +9,7 @@ import { SignupAvailability } from "@/app/_components/SignupAvailability";
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { formatScheduleDateTime, formatScheduleTimeHHMM } from "@/lib/time";
 
 type ActiveSchedule = Prisma.ScheduleGetPayload<{
   include: {
@@ -145,16 +146,13 @@ export default async function Home() {
     ? signUps.find((s: SignUpRow) => s.userId === userId) ?? null
     : null;
 
-  const fmtHHMM = (d: Date) =>
-    d.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-
-  const defaultArriveAt = activeSchedule ? fmtHHMM(activeSchedule.date) : "";
+  const defaultArriveAt = activeSchedule
+    ? formatScheduleTimeHHMM(activeSchedule.date)
+    : "";
   const defaultLeaveAt = activeSchedule
-    ? fmtHHMM(new Date(activeSchedule.date.getTime() + 2 * 60 * 60 * 1000))
+    ? formatScheduleTimeHHMM(
+        new Date(activeSchedule.date.getTime() + 2 * 60 * 60 * 1000)
+      )
     : "";
 
   const getAttendanceBadge = (status: UserLineItem["attendanceStatus"]) => {
@@ -309,7 +307,7 @@ export default async function Home() {
               </div>
               {activeSchedule ? (
                 <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {activeSchedule.date.toLocaleString()} · Limit {limit}
+                  {formatScheduleDateTime(activeSchedule.date)} · Limit {limit}
                 </div>
               ) : (
                 <div className="text-sm text-zinc-600 dark:text-zinc-400">

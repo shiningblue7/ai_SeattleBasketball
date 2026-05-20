@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { formatScheduleTimeHHMM } from "@/lib/time";
 
 type ScheduleRow = Awaited<ReturnType<typeof prisma.schedule.findMany>>[number];
 
@@ -59,16 +60,13 @@ export async function getAdminData(opts?: { signupsScheduleId?: string }) {
     defaultNonArchivedSchedule ??
     null;
 
-  const fmtHHMM = (d: Date) =>
-    d.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-
-  const defaultArriveAt = signupsSchedule ? fmtHHMM(signupsSchedule.date) : "";
+  const defaultArriveAt = signupsSchedule
+    ? formatScheduleTimeHHMM(signupsSchedule.date)
+    : "";
   const defaultLeaveAt = signupsSchedule
-    ? fmtHHMM(new Date(signupsSchedule.date.getTime() + 2 * 60 * 60 * 1000))
+    ? formatScheduleTimeHHMM(
+        new Date(signupsSchedule.date.getTime() + 2 * 60 * 60 * 1000)
+      )
     : "";
 
   const signUps = signupsSchedule

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { formatScheduleDateTime } from "@/lib/time";
 
 type WaitlistNotificationDelegate = {
   findMany: (args: unknown) => Promise<unknown>;
@@ -294,7 +295,7 @@ export async function notifyWaitlistPromotionsForSchedule({
   }
 
   const scheduleLine = `Schedule: ${schedule.title}`;
-  const whenLine = `When: ${schedule.date.toLocaleString()}`;
+  const whenLine = `When: ${formatScheduleDateTime(schedule.date)}`;
 
   await Promise.all(
     users
@@ -346,7 +347,7 @@ export async function notifyAdminsOfSignupChange({
 
   const text = [
     `Schedule: ${schedule.title}`,
-    `When: ${schedule.date.toLocaleString()}`,
+    `When: ${formatScheduleDateTime(schedule.date)}`,
     "",
     slotLine,
     `Added by: ${actor.label}`,
