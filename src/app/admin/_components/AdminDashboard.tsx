@@ -239,10 +239,11 @@ export function AdminDashboard({
           | { error?: string }
           | null;
         setError(data?.error ?? "Failed to delete user");
-        return;
+        return false;
       }
 
       refresh();
+      return true;
     } finally {
       setBusy(false);
     }
@@ -472,14 +473,16 @@ export function AdminDashboard({
           | { error?: string }
           | null;
         setError(data?.error ?? "Failed to update user");
-        return;
+        return false;
       }
 
       refresh();
+      return true;
     } finally {
       setBusy(false);
     }
   };
+
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -576,7 +579,7 @@ export function AdminDashboard({
         <div className="fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/40" onClick={() => setSelectedUser(null)} />
           <div className="ml-auto w-full max-w-md bg-white p-6 dark:bg-slate-900">
-            <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between">
               <div>
                 <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">{selectedUser.name ?? selectedUser.email ?? selectedUser.id}</div>
                 <div className="text-sm text-zinc-600 dark:text-zinc-400">{selectedUser.email}</div>
@@ -591,6 +594,7 @@ export function AdminDashboard({
             </div>
 
             <div className="mt-4">
+              {error ? <div className="text-sm text-red-600">{error}</div> : null}
               <div className="flex flex-wrap gap-2">
                 {isAdmin(selectedUser.roles) ? (
                   <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700">Admin</span>
