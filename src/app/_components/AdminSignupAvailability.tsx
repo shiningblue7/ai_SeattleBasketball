@@ -88,12 +88,13 @@ export function AdminSignupAvailability({
   };
 
   return (
-    <div className="grid gap-2 min-w-0">
+      <div className="grid gap-2 min-w-0">
       <div className="grid grid-cols-1 gap-2 sm:flex sm:gap-2 min-w-0">
         <div className="min-w-0 flex-1">
           <input
             type="time"
-            className="h-10 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
+            className="appearance-none shrink h-10 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
+            style={{ WebkitAppearance: "textfield" }}
             value={arriveAt}
             onChange={(e) => setArriveAt(e.target.value)}
           />
@@ -101,7 +102,8 @@ export function AdminSignupAvailability({
         <div className="min-w-0 flex-1">
           <input
             type="time"
-            className="h-10 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
+            className="appearance-none shrink h-10 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
+            style={{ WebkitAppearance: "textfield" }}
             value={leaveAt}
             onChange={(e) => setLeaveAt(e.target.value)}
           />
