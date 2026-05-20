@@ -9,6 +9,10 @@ type SignUpRow = Prisma.SignUpGetPayload<{
   include: { user: { select: { email: true; name: true; member: true } } };
 }>;
 
+type GuestSignUpRow = Prisma.GuestSignUpGetPayload<{
+  include: { guestOf: { select: { email: true; name: true } } };
+}>;
+
 type UserRow = Prisma.UserGetPayload<{
   select: {
     id: true;
@@ -73,6 +77,14 @@ export async function getAdminData(opts?: { signupsScheduleId?: string }) {
     ? await prisma.signUp.findMany({
         where: { scheduleId: signupsSchedule.id },
         include: { user: { select: { email: true, name: true, member: true } } },
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      })
+    : [];
+
+  const guestSignUps = signupsSchedule
+    ? await prisma.guestSignUp.findMany({
+        where: { scheduleId: signupsSchedule.id },
+        include: { guestOf: { select: { email: true, name: true } } },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       })
     : [];
@@ -147,7 +159,19 @@ export async function getAdminData(opts?: { signupsScheduleId?: string }) {
       attendanceNote: s.attendanceNote,
       arriveAt: getArriveAt(s),
       leaveAt: getLeaveAt(s),
+      createdAt: s.createdAt.toISOString(),
       user: { email: s.user.email, name: s.user.name, member: s.user.member },
+    })),
+    guestSignUps: guestSignUps.map((g: GuestSignUpRow) => ({
+      id: g.id,
+      position: g.position,
+      createdAt: g.createdAt.toISOString(),
+      guestName: g.guestName,
+      guestOfUserId: g.guestOfUserId,
+      guestOf: {
+        email: g.guestOf?.email ?? null,
+        name: g.guestOf?.name ?? null,
+      },
     })),
     users: users.map((u: UserRow) => ({
       id: u.id,

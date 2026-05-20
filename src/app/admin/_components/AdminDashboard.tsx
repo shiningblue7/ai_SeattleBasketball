@@ -31,7 +31,17 @@ type SignUpRow = {
   attendanceNote: string | null;
   arriveAt: string | null;
   leaveAt: string | null;
+  createdAt: string;
   user: { email: string | null; name: string | null; member: boolean };
+};
+
+type GuestSignUpRow = {
+  id: string;
+  position: number;
+  createdAt: string;
+  guestName: string;
+  guestOfUserId: string | null;
+  guestOf: { email: string | null; name: string | null };
 };
 
 type UserRow = {
@@ -84,6 +94,7 @@ export function AdminDashboard({
   defaultArriveAt,
   defaultLeaveAt,
   signUps,
+  guestSignUps,
   users,
   events,
 }: {
@@ -94,6 +105,7 @@ export function AdminDashboard({
   defaultArriveAt: string;
   defaultLeaveAt: string;
   signUps: SignUpRow[];
+  guestSignUps?: GuestSignUpRow[];
   users: UserRow[];
   events?: EventRow[];
 }) {
@@ -118,6 +130,32 @@ export function AdminDashboard({
 
   const selectedSignupsSchedule = signupsSchedule ?? activeSchedule;
   const activeScheduleId = selectedSignupsSchedule?.id ?? null;
+
+  const combinedSignUps = [
+    ...signUps.map((s) => ({
+      kind: "user" as const,
+      id: s.id,
+      userId: s.userId,
+      position: s.position,
+      createdAt: s.createdAt,
+      user: s.user,
+      attendanceStatus: s.attendanceStatus,
+      attendanceNote: s.attendanceNote,
+      arriveAt: s.arriveAt,
+      leaveAt: s.leaveAt,
+    })),
+    ...(guestSignUps ?? []).map((g) => ({
+      kind: "guest" as const,
+      id: g.id,
+      position: g.position,
+      createdAt: g.createdAt,
+      guestName: g.guestName,
+      guestOfLabel: g.guestOf.name ?? g.guestOf.email ?? "unknown",
+    })),
+  ].sort((a, b) => {
+    if (a.position !== b.position) return a.position - b.position;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
 
   const signupsScheduleOptions = schedules
     .slice()
@@ -356,6 +394,31 @@ export function AdminDashboard({
           | { error?: string }
           | null;
         setError(data?.error ?? "Failed to remove signup");
+        return;
+      }
+
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeGuest = async (guestSignUpId: string) => {
+    if (!activeScheduleId) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const resp = await fetch("/api/guests", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ guestSignUpId }),
+      });
+
+      if (!resp.ok) {
+        const data = (await resp.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        setError(data?.error ?? "Failed to remove guest");
         return;
       }
 
@@ -830,59 +893,84 @@ export function AdminDashboard({
                 {selectedSignupsSchedule.title} · {formatScheduleDateTimeLong(selectedSignupsSchedule.date)} · Limit {selectedSignupsSchedule.limit}
               </div>
               <div className="mt-4 grid gap-2">
-                {signUps
-                  .slice()
-                  .sort((a, b) => a.position - b.position)
-                  .map((s, idx, arr) => (
-                    <div
-                      key={s.id}
-                      className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-600 dark:bg-slate-700"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-100">
-                          {s.user.name ?? s.user.email ?? "User"}{s.user.member ? " (member)" : ""}
-                        </div>
-                        <div className="text-xs text-zinc-600 dark:text-zinc-400">order {idx + 1}</div>
+                {combinedSignUps.map((item, idx, arr) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-600 dark:bg-slate-700"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-100">
+                        {item.kind === "user"
+                          ? `${item.user.name ?? item.user.email ?? "User"}${item.user.member ? " (member)" : ""}`
+                          : `${item.guestName} (guest of ${item.guestOfLabel})`}
                       </div>
-                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
-                        <div className="w-full sm:w-56">
-                          <AdminSignupAvailability
-                            signUpId={s.id}
-                            defaultArriveAt={defaultArriveAt}
-                            defaultLeaveAt={defaultLeaveAt}
-                            initialStatus={s.attendanceStatus}
-                            initialNote={s.attendanceNote}
-                            initialArriveAt={s.arriveAt}
-                            initialLeaveAt={s.leaveAt}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
-                          disabled={busy}
-                          onClick={() => removeSignup(s.userId)}
-                        >
-                          Remove
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
-                          disabled={busy || idx === 0}
-                          onClick={() => swap(arr[idx - 1].id, s.id)}
-                        >
-                          Up
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
-                          disabled={busy || idx === arr.length - 1}
-                          onClick={() => swap(s.id, arr[idx + 1].id)}
-                        >
-                          Down
-                        </button>
-                      </div>
+                      <div className="text-xs text-zinc-600 dark:text-zinc-400">order {idx + 1}</div>
                     </div>
-                  ))}
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+                      {item.kind === "user" ? (
+                        <>
+                          <div className="w-full sm:w-56">
+                            <AdminSignupAvailability
+                              signUpId={item.id}
+                              defaultArriveAt={defaultArriveAt}
+                              defaultLeaveAt={defaultLeaveAt}
+                              initialStatus={item.attendanceStatus}
+                              initialNote={item.attendanceNote}
+                              initialArriveAt={item.arriveAt}
+                              initialLeaveAt={item.leaveAt}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            disabled={busy}
+                            onClick={() => removeSignup(item.userId)}
+                          >
+                            Remove
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            disabled={
+                              busy ||
+                              idx === 0 ||
+                              arr[idx - 1].kind !== "user" ||
+                              item.kind !== "user"
+                            }
+                            onClick={() => swap(arr[idx - 1].id, item.id)}
+                          >
+                            Up
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            disabled={
+                              busy ||
+                              idx === arr.length - 1 ||
+                              arr[idx + 1].kind !== "user" ||
+                              item.kind !== "user"
+                            }
+                            onClick={() => swap(item.id, arr[idx + 1].id)}
+                          >
+                            Down
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-full sm:w-56" />
+                          <button
+                            type="button"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            disabled={busy}
+                            onClick={() => removeGuest(item.id)}
+                          >
+                            Remove guest
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </>
           ) : (
