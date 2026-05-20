@@ -24,6 +24,14 @@ type SeedSignupInput = {
   attendanceStatus?: "FULL" | "LATE" | "LEAVE_EARLY" | "PARTIAL";
 };
 
+type SeedGuestSignupInput = {
+  scheduleId: string;
+  guestName: string;
+  guestOfUserId?: string | null;
+  addedByUserId: string;
+  position: number;
+};
+
 type WaitlistLookup = {
   scheduleId: string;
   userId: string;
@@ -98,6 +106,18 @@ export async function seedSignup(input: SeedSignupInput) {
   });
 }
 
+export async function seedGuestSignup(input: SeedGuestSignupInput) {
+  return prisma.guestSignUp.create({
+    data: {
+      scheduleId: input.scheduleId,
+      guestName: input.guestName,
+      guestOfUserId: input.guestOfUserId ?? null,
+      addedByUserId: input.addedByUserId,
+      position: input.position,
+    },
+  });
+}
+
 export async function getSignupForUser(scheduleId: string, userId: string) {
   return prisma.signUp.findUnique({
     where: { scheduleId_userId: { scheduleId, userId } },
@@ -127,6 +147,10 @@ export async function getUserByEmail({ email }: UserLookup) {
 
 export async function listSignupsForSchedule({ scheduleId }: SignupsLookup) {
   return prisma.signUp.findMany({ where: { scheduleId }, orderBy: { position: "asc" } });
+}
+
+export async function listGuestSignupsForSchedule({ scheduleId }: SignupsLookup) {
+  return prisma.guestSignUp.findMany({ where: { scheduleId }, orderBy: { position: "asc" } });
 }
 
 export async function createPasswordResetToken({

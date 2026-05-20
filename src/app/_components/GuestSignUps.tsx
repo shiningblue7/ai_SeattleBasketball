@@ -17,14 +17,12 @@ export function GuestSignUps({
   scheduleId,
   signedIn,
   alreadySignedUp,
-  isAdmin,
   currentUserId,
   guests,
 }: {
   scheduleId: string;
   signedIn: boolean;
   alreadySignedUp: boolean;
-  isAdmin: boolean;
   currentUserId: string | null;
   guests: GuestRow[];
 }) {
@@ -117,30 +115,37 @@ export function GuestSignUps({
           .slice()
           .sort((a, b) => a.position - b.position)
           .map((g) => {
-            const canRemove =
-              isAdmin || (currentUserId && g.addedByUserId === currentUserId);
+            const canWithdraw =
+              Boolean(currentUserId && g.guestOfUserId === currentUserId);
 
             return (
               <div
                 key={g.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-100 p-3 dark:border-slate-600 dark:bg-slate-700"
+                className="flex items-center justify-between gap-3 rounded-xl border border-violet-100 bg-violet-50/40 p-3 dark:border-violet-900/40 dark:bg-violet-950/15"
               >
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-100">
-                    {g.guestName} (guest)
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-100">
+                      {g.guestName} (guest)
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-800 dark:bg-violet-950/40 dark:text-violet-100">
+                      Guest of {g.guestOfLabel}
+                    </span>
                   </div>
                   <div className="text-xs text-zinc-600 dark:text-zinc-400">
                     Guest of {g.guestOfLabel} · Added by {g.addedByLabel} · position {g.position}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
-                  disabled={busy || !canRemove}
-                  onClick={() => removeGuest(g.id)}
-                >
-                  Remove
-                </button>
+                {canWithdraw ? (
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-60 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-100 dark:hover:bg-rose-950/35"
+                    disabled={busy}
+                    onClick={() => removeGuest(g.id)}
+                  >
+                    Withdraw guest
+                  </button>
+                ) : null}
               </div>
             );
           })}

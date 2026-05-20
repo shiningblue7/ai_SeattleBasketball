@@ -296,6 +296,9 @@ export function AdminDashboard({
     schedulePageClamped * SCHEDULES_PAGE_SIZE + SCHEDULES_PAGE_SIZE
   );
   const waitlistStartIndex = selectedSignupsSchedule ? selectedSignupsSchedule.limit : 0;
+  const playingCount = Math.min(waitlistStartIndex, combinedSignUps.length);
+  const waitlistCount = Math.max(0, combinedSignUps.length - waitlistStartIndex);
+  const guestCount = combinedSignUps.filter((item) => item.kind === "guest").length;
 
   const filteredUsers = users.filter((u) => {
     const admin = isAdmin(u.roles);
@@ -907,6 +910,17 @@ export function AdminDashboard({
               <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                 {selectedSignupsSchedule.title} · {formatScheduleDateTimeLong(selectedSignupsSchedule.date)} · Limit {selectedSignupsSchedule.limit}
               </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">
+                  {playingCount} playing
+                </span>
+                <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">
+                  {waitlistCount} waitlist
+                </span>
+                <span className="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-1 font-medium text-violet-800 dark:bg-violet-950/40 dark:text-violet-100">
+                  {guestCount} guests
+                </span>
+              </div>
               <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                 First {selectedSignupsSchedule.limit} spots are playing. The rest are waitlist.
               </div>
@@ -924,9 +938,13 @@ export function AdminDashboard({
                     ) : null}
                     <div
                       className={`flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${
-                        idx >= waitlistStartIndex
-                          ? "border-amber-200 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/20"
-                          : "border-zinc-100 dark:border-slate-600 dark:bg-slate-700"
+                        item.kind === "guest"
+                          ? idx >= waitlistStartIndex
+                            ? "border-violet-200 bg-violet-50/60 dark:border-violet-900/50 dark:bg-violet-950/20"
+                            : "border-violet-100 bg-violet-50/40 dark:border-violet-900/40 dark:bg-violet-950/15"
+                          : idx >= waitlistStartIndex
+                            ? "border-amber-200 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/20"
+                            : "border-zinc-100 dark:border-slate-600 dark:bg-slate-700"
                       }`}
                     >
                     <div className="min-w-0">
@@ -937,6 +955,11 @@ export function AdminDashboard({
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
                         <span>order {idx + 1}</span>
+                        {item.kind === "guest" ? (
+                          <span className="rounded-full bg-violet-100 px-2 py-1 font-medium text-violet-800 dark:bg-violet-950/40 dark:text-violet-100">
+                            Guest
+                          </span>
+                        ) : null}
                         <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700 dark:bg-slate-600 dark:text-zinc-100">
                           {idx < waitlistStartIndex ? "Playing" : "Waitlist"}
                         </span>
@@ -961,7 +984,7 @@ export function AdminDashboard({
                         <>
                           <button
                             type="button"
-                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-60 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-100 dark:hover:bg-rose-950/35"
                             disabled={busy}
                             onClick={() => removeSignup(item.userId)}
                           >
@@ -972,7 +995,7 @@ export function AdminDashboard({
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
                               idx === waitlistStartIndex
                                 ? "border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400"
-                                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                                : "border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100 dark:hover:bg-sky-950/35"
                             }`}
                             disabled={busy || idx === 0}
                             onClick={() => swap(arr[idx - 1].id, item.id)}
@@ -984,7 +1007,7 @@ export function AdminDashboard({
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
                               idx === waitlistStartIndex - 1
                                 ? "border border-amber-600 bg-amber-600 text-white hover:bg-amber-700 dark:border-amber-500 dark:bg-amber-500 dark:text-white dark:hover:bg-amber-400"
-                                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                                : "border border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/20 dark:text-orange-100 dark:hover:bg-orange-950/35"
                             }`}
                             disabled={busy || idx === arr.length - 1}
                             onClick={() => swap(item.id, arr[idx + 1].id)}
@@ -993,7 +1016,7 @@ export function AdminDashboard({
                           </button>
                           <button
                             type="button"
-                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-4 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                             onClick={() =>
                               setSelectedSignup({
                                 id: item.id,
@@ -1016,7 +1039,7 @@ export function AdminDashboard({
                           <div className="w-full sm:w-56" />
                           <button
                             type="button"
-                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-60 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-100 dark:hover:bg-rose-950/35"
                             disabled={busy}
                             onClick={() => removeGuest(item.id)}
                           >
@@ -1027,7 +1050,7 @@ export function AdminDashboard({
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
                               idx === waitlistStartIndex
                                 ? "border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400"
-                                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                                : "border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100 dark:hover:bg-sky-950/35"
                             }`}
                             disabled={busy || idx === 0}
                             onClick={() => swapGuests(arr[idx - 1].id, item.id)}
@@ -1039,7 +1062,7 @@ export function AdminDashboard({
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
                               idx === waitlistStartIndex - 1
                                 ? "border border-amber-600 bg-amber-600 text-white hover:bg-amber-700 dark:border-amber-500 dark:bg-amber-500 dark:text-white dark:hover:bg-amber-400"
-                                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                                : "border border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/20 dark:text-orange-100 dark:hover:bg-orange-950/35"
                             }`}
                             disabled={busy || idx === arr.length - 1}
                             onClick={() => swapGuests(item.id, arr[idx + 1].id)}

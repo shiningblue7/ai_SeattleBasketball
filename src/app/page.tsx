@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { ActiveScheduleActions } from "@/app/_components/ActiveScheduleActions";
 import { WaitlistNotifyToggle } from "@/app/_components/WaitlistNotifyToggle";
 import { AuthButtons } from "@/app/_components/AuthButtons";
+import { GuestLineItem } from "@/app/_components/GuestLineItem";
 import { GuestSignUps } from "@/app/_components/GuestSignUps";
 import { SignupAvailability } from "@/app/_components/SignupAvailability";
 import { authOptions } from "@/auth";
@@ -37,36 +38,6 @@ type ActiveSchedule = Prisma.ScheduleGetPayload<{
 type SignUpRow = NonNullable<ActiveSchedule>["signUps"][number];
 type GuestRow = NonNullable<ActiveSchedule>["guestSignUps"][number];
 
-function formatGoogleCalendarUtc(dt: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    dt.getUTCFullYear() +
-    pad(dt.getUTCMonth() + 1) +
-    pad(dt.getUTCDate()) +
-    "T" +
-    pad(dt.getUTCHours()) +
-    pad(dt.getUTCMinutes()) +
-    pad(dt.getUTCSeconds()) +
-    "Z"
-  );
-}
-
-function makeGoogleCalendarUrl(input: {
-  title: string;
-  start: Date;
-  end: Date;
-  details?: string;
-}) {
-  const start = formatGoogleCalendarUtc(input.start);
-  const end = formatGoogleCalendarUtc(input.end);
-  const url = new URL("https://calendar.google.com/calendar/render");
-  url.searchParams.set("action", "TEMPLATE");
-  url.searchParams.set("text", input.title);
-  url.searchParams.set("dates", `${start}/${end}`);
-  if (input.details) url.searchParams.set("details", input.details);
-  return url.toString();
-}
-
 type LineItem =
   | {
       kind: "user";
@@ -85,7 +56,11 @@ type LineItem =
       id: string;
       position: number;
       createdAt: Date;
-      label: string;
+      guestName: string;
+      guestOfLabel: string;
+      guestOfUserId: string | null;
+      guestSignUpId: string;
+      addedByUserId: string;
     };
 
 type UserLineItem = Extract<LineItem, { kind: "user" }>;
@@ -195,15 +170,38 @@ export default async function Home() {
     return parts.join(" · ");
   };
 
-  const renderLineItem = (it: LineItem) => {
-    if (it.kind === "guest") return <span className="text-zinc-800 dark:text-zinc-300">{it.label}</span>;
+  const renderLineItem = (it: LineItem, index: number) => {
+    const isCurrentUser = it.kind === "user" && currentUserSignup?.id === it.id;
+    const waitlistRank = it.kind === "user" && index >= limit ? index - limit + 1 : null;
+
+    if (it.kind === "guest") {
+      return (
+        <GuestLineItem
+          label={it.guestName}
+          guestOfLabel={it.guestOfLabel}
+          guestSignUpId={it.guestSignUpId}
+          canWithdraw={Boolean(userId && it.guestOfUserId === userId)}
+        />
+      );
+    }
 
     const details = buildDetailsText(it);
 
     return (
-      <div className="-ml-1">
+      <div
+        className={
+          isCurrentUser
+            ? "rounded-xl border border-sky-500 bg-sky-50 px-3 py-2 shadow-sm dark:border-sky-400 dark:bg-sky-950/30"
+            : "-ml-1"
+        }
+      >
         <div className="flex flex-wrap items-center">
           <span className="ml-1 text-zinc-800 dark:text-zinc-200">{it.name}</span>
+          {isCurrentUser ? (
+            <span className="ml-2 inline-flex items-center rounded-full bg-sky-600 px-2 py-0.5 text-xs font-semibold text-white">
+              YOU
+            </span>
+          ) : null}
           {admin && it.member ? (
             <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
               MEMBER
@@ -211,6 +209,31 @@ export default async function Home() {
           ) : null}
           {getAttendanceBadge(it.attendanceStatus)}
         </div>
+
+        {isCurrentUser ? (
+          <div className="ml-1 mt-2 flex flex-wrap gap-2 text-xs">
+            <a
+              href="#signup-availability"
+              className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+            >
+              Edit time
+            </a>
+            <a
+              href="#signup-actions"
+              className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 font-medium text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-100 dark:hover:bg-rose-950/35"
+            >
+              Withdraw
+            </a>
+          </div>
+        ) : null}
+
+        {waitlistRank ? (
+          <div className="ml-1 mt-2">
+            <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">
+              #{waitlistRank} on waitlist
+            </span>
+          </div>
+        ) : null}
 
         {details ? (
           <>
@@ -247,13 +270,11 @@ export default async function Home() {
       id: g.id,
       position: g.position,
       createdAt: g.createdAt,
-      label: `${g.guestName} (guest of ${
-        g.guestOf?.name ??
-        g.guestOf?.email ??
-        g.addedBy.name ??
-        g.addedBy.email ??
-        "unknown"
-      })`,
+      guestOfUserId: g.guestOfUserId,
+      guestSignUpId: g.id,
+      addedByUserId: g.addedByUserId,
+      guestOfLabel: g.guestOf?.name ?? g.guestOf?.email ?? g.addedBy.name ?? g.addedBy.email ?? "unknown",
+      guestName: g.guestName,
     })),
   ].sort((a, b) => {
     if (a.position !== b.position) return a.position - b.position;
@@ -262,25 +283,10 @@ export default async function Home() {
 
   const signedIn = Boolean(session?.user);
 
-  const currentUserIndex = userId
-    ? items.findIndex((it) => it.kind === "user" && it.id === currentUserSignup?.id)
-    : -1;
-
   const playingCount = activeSchedule ? Math.min(limit, items.length) : 0;
   const waitlistCount = activeSchedule ? Math.max(0, items.length - limit) : 0;
-
-  const currentUserStatus = (() => {
-    if (!activeSchedule || !signedIn || !alreadySignedUp || currentUserIndex < 0) return null;
-    if (currentUserIndex < limit) {
-      return { label: "Playing" as const, detail: null as string | null };
-    }
-    return {
-      label: "Waitlist" as const,
-      detail: `#${currentUserIndex - limit + 1}`,
-    };
-  })();
-
-  const currentUserArriveAt = currentUserSignup ? getArriveAt(currentUserSignup) : null;
+  const waitlistSpotsRemaining = activeSchedule ? Math.max(0, limit - items.length) : 0;
+  const isFull = Boolean(activeSchedule && items.length >= limit);
 
   const guestUiRows: GuestUiRow[] = guestSignUps.map((g: GuestRow) => {
     const guestOfLabel = g.guestOf?.name ?? g.guestOf?.email ?? "unknown";
@@ -314,30 +320,16 @@ export default async function Home() {
                   An admin needs to create and activate a schedule.
                 </div>
               )}
-
               {activeSchedule ? (
-                <div className="mt-1 flex flex-wrap gap-2">
-                  <a
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
-                    href={`/api/schedules/${encodeURIComponent(activeSchedule.id)}/ics`}
-                  >
-                    Download ICS
-                  </a>
-                  <a
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
-                    href={makeGoogleCalendarUrl({
-                      title: activeSchedule.title,
-                      start: activeSchedule.date,
-                      end: new Date(activeSchedule.date.getTime() + 2 * 60 * 60 * 1000),
-                      details: "Seattle Basketball",
-                    })}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Add to Google Calendar
-                  </a>
+                <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {items.length === 0
+                    ? "No one has signed up yet."
+                    : isFull
+                      ? "This schedule is full, so new signups go to the waitlist."
+                      : `${waitlistSpotsRemaining} spot${waitlistSpotsRemaining === 1 ? "" : "s"} left before the waitlist starts.`}
                 </div>
               ) : null}
+
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -354,8 +346,18 @@ export default async function Home() {
           {activeSchedule && signedIn ? (
             <div className="mt-5 grid gap-6 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <div className="sm:hidden">
-                  <div className="sticky top-20 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div id="signup-actions">
+                  <div className="sm:hidden">
+                    <div className="sticky top-20 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                      <ActiveScheduleActions
+                        scheduleId={activeSchedule.id}
+                        signedIn={signedIn}
+                        alreadySignedUp={alreadySignedUp}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="hidden sm:block">
                     <ActiveScheduleActions
                       scheduleId={activeSchedule.id}
                       signedIn={signedIn}
@@ -363,48 +365,35 @@ export default async function Home() {
                     />
                   </div>
                 </div>
-
-                <div className="hidden sm:block">
-                  <ActiveScheduleActions
-                    scheduleId={activeSchedule.id}
-                    signedIn={signedIn}
-                    alreadySignedUp={alreadySignedUp}
-                  />
-                </div>
-
-                {currentUserStatus ? (
-                  <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                    <div className="text-sm font-medium text-zinc-950 dark:text-zinc-50">Your status</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                      <span className="inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-900 dark:bg-slate-700 dark:text-zinc-100">
-                        {currentUserStatus.label}
-                        {currentUserStatus.detail ? ` ${currentUserStatus.detail}` : ""}
-                      </span>
-                      {currentUserArriveAt ? (
-                        <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900 dark:bg-amber-900 dark:text-amber-100">
-                          Arrive {currentUserArriveAt}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
               </div>
 
               <div className="flex flex-col gap-3">
                 <div className="text-sm font-medium text-zinc-950 dark:text-zinc-50">Playing ({playingCount})</div>
-                <ol className="list-decimal pl-5 text-sm text-zinc-800 dark:text-zinc-200">
-                  {items.slice(0, limit).map((it) => (
-                    <li key={it.id}>{renderLineItem(it)}</li>
-                  ))}
-                </ol>
+                {playingCount > 0 ? (
+                  <ol className="list-decimal pl-5 text-sm text-zinc-800 dark:text-zinc-200">
+                    {items.slice(0, limit).map((it, idx) => (
+                      <li key={it.id}>{renderLineItem(it, idx)}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-slate-700 dark:bg-slate-800 dark:text-zinc-400">
+                    No one has signed up yet.
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-3">
                 <div className="text-sm font-medium text-zinc-950 dark:text-zinc-50">Waitlist ({waitlistCount})</div>
-                <ol className="list-decimal pl-5 text-sm text-zinc-800 dark:text-zinc-200">
-                  {items.slice(limit).map((it) => (
-                    <li key={it.id}>{renderLineItem(it)}</li>
-                  ))}
-                </ol>
+                {waitlistCount > 0 ? (
+                  <ol className="list-decimal pl-5 text-sm text-zinc-800 dark:text-zinc-200">
+                    {items.slice(limit).map((it, idx) => (
+                      <li key={it.id}>{renderLineItem(it, limit + idx)}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-slate-700 dark:bg-slate-800 dark:text-zinc-400">
+                    No waitlist yet.
+                  </div>
+                )}
               </div>
 
               <div className="sm:col-span-2">
@@ -416,26 +405,27 @@ export default async function Home() {
                 ) : null}
 
                 {alreadySignedUp && currentUserSignup ? (
-                  <SignupAvailability
-                    scheduleId={activeSchedule.id}
-                    defaultArriveAt={defaultArriveAt}
-                    defaultLeaveAt={defaultLeaveAt}
-                    initialStatus={currentUserSignup.attendanceStatus}
-                    initialNote={currentUserSignup.attendanceNote}
-                    initialArriveAt={getArriveAt(currentUserSignup)}
-                    initialLeaveAt={getLeaveAt(currentUserSignup)}
-                  />
+                  <div id="signup-availability">
+                    <SignupAvailability
+                      scheduleId={activeSchedule.id}
+                      defaultArriveAt={defaultArriveAt}
+                      defaultLeaveAt={defaultLeaveAt}
+                      initialStatus={currentUserSignup.attendanceStatus}
+                      initialNote={currentUserSignup.attendanceNote}
+                      initialArriveAt={getArriveAt(currentUserSignup)}
+                      initialLeaveAt={getLeaveAt(currentUserSignup)}
+                    />
+                  </div>
                 ) : null}
 
                 <div className="mt-4">
-                  <GuestSignUps
-                    scheduleId={activeSchedule.id}
-                    signedIn={signedIn}
-                    alreadySignedUp={alreadySignedUp}
-                    isAdmin={admin}
-                    currentUserId={userId ?? null}
-                    guests={guestUiRows}
-                  />
+                <GuestSignUps
+                  scheduleId={activeSchedule.id}
+                  signedIn={signedIn}
+                  alreadySignedUp={alreadySignedUp}
+                  currentUserId={userId ?? null}
+                  guests={guestUiRows}
+                />
                 </div>
               </div>
             </div>
