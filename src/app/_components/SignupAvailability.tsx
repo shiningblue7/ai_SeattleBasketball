@@ -95,21 +95,21 @@ export function SignupAvailability({
       </div>
 
       <div className="mt-3 grid gap-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-w-0">
+          <div className="min-w-0">
             <div className="mb-1 text-xs font-medium text-zinc-700">Arrive at (optional)</div>
             <input
               type="time"
-              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
+              className="h-11 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
               value={arriveAt}
               onChange={(e) => setArriveAt(e.target.value)}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="mb-1 text-xs font-medium text-zinc-700">Leave at (optional)</div>
             <input
               type="time"
-              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
+              className="h-11 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
               value={leaveAt}
               onChange={(e) => setLeaveAt(e.target.value)}
             />

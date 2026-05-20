@@ -88,17 +88,17 @@ export function AdminSignupAvailability({
   };
 
   return (
-    <div className="grid gap-2">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <div className="grid gap-2 min-w-0">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 min-w-0">
         <input
           type="time"
-          className="h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
+          className="h-10 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
           value={arriveAt}
           onChange={(e) => setArriveAt(e.target.value)}
         />
         <input
           type="time"
-          className="h-10 w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
+          className="h-10 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
           value={leaveAt}
           onChange={(e) => setLeaveAt(e.target.value)}
         />
