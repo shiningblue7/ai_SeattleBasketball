@@ -909,7 +909,7 @@ export function AdminDashboard({
                     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
                       {item.kind === "user" ? (
                         <>
-                          <div className="w-full sm:w-56">
+                          <div className="w-full min-w-0 sm:w-56">
                             <AdminSignupAvailability
                               signUpId={item.id}
                               defaultArriveAt={defaultArriveAt}
