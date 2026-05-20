@@ -16,34 +16,49 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => null)) as
-    | { scheduleId?: string; signUpId1?: string; signUpId2?: string }
+    | {
+        scheduleId?: string;
+        id1?: string;
+        id2?: string;
+        signUpId1?: string;
+        signUpId2?: string;
+        guestSignUpId1?: string;
+        guestSignUpId2?: string;
+      }
     | null;
 
   const scheduleId = body?.scheduleId;
-  const signUpId1 = body?.signUpId1;
-  const signUpId2 = body?.signUpId2;
+  const id1 = body?.id1 ?? body?.signUpId1 ?? body?.guestSignUpId1;
+  const id2 = body?.id2 ?? body?.signUpId2 ?? body?.guestSignUpId2;
 
-  if (!scheduleId || !signUpId1 || !signUpId2) {
+  if (!scheduleId || !id1 || !id2) {
     return NextResponse.json(
-      { error: "scheduleId, signUpId1, signUpId2 are required" },
+      { error: "scheduleId, id1, id2 are required" },
       { status: 400 }
     );
   }
 
-  if (signUpId1 === signUpId2) {
+  if (id1 === id2) {
     return NextResponse.json({ ok: true });
   }
 
-  const [a, b] = await Promise.all([
-    prisma.signUp.findUnique({
-      where: { id: signUpId1 },
+  const lookupItem = async (id: string) => {
+    const signUp = await prisma.signUp.findUnique({
+      where: { id },
       select: { id: true, scheduleId: true, position: true },
-    }),
-    prisma.signUp.findUnique({
-      where: { id: signUpId2 },
+    });
+    if (signUp) return { kind: "user" as const, ...signUp };
+
+    const guest = await prisma.guestSignUp.findUnique({
+      where: { id },
       select: { id: true, scheduleId: true, position: true },
-    }),
-  ]);
+    });
+    if (guest) return { kind: "guest" as const, ...guest };
+
+    return null;
+  };
+
+  const [a, b] = await Promise.all([lookupItem(id1), lookupItem(id2)]);
 
   if (!a || !b) {
     return NextResponse.json({ error: "Signup not found" }, { status: 404 });
@@ -59,24 +74,36 @@ export async function POST(req: Request) {
   const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
 
   await prisma.$transaction([
-    prisma.signUp.update({
-      where: { id: a.id },
-      data: { position: b.position },
-    }),
-    prisma.signUp.update({
-      where: { id: b.id },
-      data: { position: a.position },
-    }),
+    a.kind === "guest"
+      ? prisma.guestSignUp.update({
+          where: { id: a.id },
+          data: { position: b.position },
+        })
+      : prisma.signUp.update({
+          where: { id: a.id },
+          data: { position: b.position },
+        }),
+    b.kind === "guest"
+      ? prisma.guestSignUp.update({
+          where: { id: b.id },
+          data: { position: a.position },
+        })
+      : prisma.signUp.update({
+          where: { id: b.id },
+          data: { position: a.position },
+        }),
   ]);
 
   await createScheduleEvent({
     scheduleId,
     type: ScheduleEventType.SIGNUP_SWAP,
     actorUserId: session!.user!.id,
-    signUpId: a.id,
+    ...(a.kind === "guest" ? { guestSignUpId: a.id } : { signUpId: a.id }),
     metadata: {
-      signUpId1: a.id,
-      signUpId2: b.id,
+      item1Kind: a.kind,
+      item2Kind: b.kind,
+      item1Id: a.id,
+      item2Id: b.id,
       from1: a.position,
       to1: b.position,
       from2: b.position,

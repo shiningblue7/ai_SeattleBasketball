@@ -123,6 +123,7 @@ export function AdminDashboard({
   const [schedulePage, setSchedulePage] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSignup, setSelectedSignup] = useState<SignUpRow | null>(null);
 
   const [guestOfUserId, setGuestOfUserId] = useState<string>("");
   const [guestName, setGuestName] = useState<string>("");
@@ -294,6 +295,7 @@ export function AdminDashboard({
     schedulePageClamped * SCHEDULES_PAGE_SIZE,
     schedulePageClamped * SCHEDULES_PAGE_SIZE + SCHEDULES_PAGE_SIZE
   );
+  const waitlistStartIndex = selectedSignupsSchedule ? selectedSignupsSchedule.limit : 0;
 
   const filteredUsers = users.filter((u) => {
     const admin = isAdmin(u.roles);
@@ -437,7 +439,7 @@ export function AdminDashboard({
       const resp = await fetch("/api/admin/signups/swap", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ scheduleId: activeScheduleId, signUpId1: id1, signUpId2: id2 }),
+        body: JSON.stringify({ scheduleId: activeScheduleId, id1, id2 }),
       });
 
       if (!resp.ok) {
@@ -452,6 +454,10 @@ export function AdminDashboard({
     } finally {
       setBusy(false);
     }
+  };
+
+  const swapGuests = async (id1: string, id2: string) => {
+    return swap(id1, id2);
   };
 
   const setUser = async (
@@ -901,34 +907,58 @@ export function AdminDashboard({
               <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                 {selectedSignupsSchedule.title} · {formatScheduleDateTimeLong(selectedSignupsSchedule.date)} · Limit {selectedSignupsSchedule.limit}
               </div>
+              <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                First {selectedSignupsSchedule.limit} spots are playing. The rest are waitlist.
+              </div>
               <div className="mt-4 grid gap-2">
                 {combinedSignUps.map((item, idx, arr) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-600 dark:bg-slate-700"
-                  >
+                  <div key={item.id} className="grid gap-2">
+                    {idx === waitlistStartIndex && idx < arr.length ? (
+                      <div className="flex items-center gap-3 px-1 py-1">
+                        <div className="h-px flex-1 bg-zinc-200 dark:bg-slate-600" />
+                        <div className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-slate-600 dark:bg-slate-800 dark:text-zinc-300">
+                          Waitlist starts here
+                        </div>
+                        <div className="h-px flex-1 bg-zinc-200 dark:bg-slate-600" />
+                      </div>
+                    ) : null}
+                    <div
+                      className={`flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${
+                        idx >= waitlistStartIndex
+                          ? "border-amber-200 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/20"
+                          : "border-zinc-100 dark:border-slate-600 dark:bg-slate-700"
+                      }`}
+                    >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-100">
                         {item.kind === "user"
                           ? `${item.user.name ?? item.user.email ?? "User"}${item.user.member ? " (member)" : ""}`
                           : `${item.guestName} (guest of ${item.guestOfLabel})`}
                       </div>
-                      <div className="text-xs text-zinc-600 dark:text-zinc-400">order {idx + 1}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                        <span>order {idx + 1}</span>
+                        <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700 dark:bg-slate-600 dark:text-zinc-100">
+                          {idx < waitlistStartIndex ? "Playing" : "Waitlist"}
+                        </span>
+                        {item.kind === "user" && (item.attendanceNote || item.arriveAt || item.leaveAt) ? (
+                          <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700 dark:bg-slate-600 dark:text-zinc-100">
+                            Time / note set
+                          </span>
+                        ) : null}
+                        {item.kind === "user" && item.attendanceStatus !== "FULL" ? (
+                          <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700 dark:bg-slate-600 dark:text-zinc-100">
+                            {item.attendanceStatus === "LATE"
+                              ? "Late"
+                              : item.attendanceStatus === "LEAVE_EARLY"
+                                ? "Leaving early"
+                                : "Partial"}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
                       {item.kind === "user" ? (
                         <>
-                          <div className="w-full min-w-0 sm:w-56">
-                            <AdminSignupAvailability
-                              signUpId={item.id}
-                              defaultArriveAt={defaultArriveAt}
-                              defaultLeaveAt={defaultLeaveAt}
-                              initialStatus={item.attendanceStatus}
-                              initialNote={item.attendanceNote}
-                              initialArriveAt={item.arriveAt}
-                              initialLeaveAt={item.leaveAt}
-                            />
-                          </div>
                           <button
                             type="button"
                             className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
@@ -940,12 +970,7 @@ export function AdminDashboard({
                           <button
                             type="button"
                             className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
-                            disabled={
-                              busy ||
-                              idx === 0 ||
-                              arr[idx - 1].kind !== "user" ||
-                              item.kind !== "user"
-                            }
+                            disabled={busy || idx === 0}
                             onClick={() => swap(arr[idx - 1].id, item.id)}
                           >
                             Up
@@ -953,15 +978,29 @@ export function AdminDashboard({
                           <button
                             type="button"
                             className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
-                            disabled={
-                              busy ||
-                              idx === arr.length - 1 ||
-                              arr[idx + 1].kind !== "user" ||
-                              item.kind !== "user"
-                            }
+                            disabled={busy || idx === arr.length - 1}
                             onClick={() => swap(item.id, arr[idx + 1].id)}
                           >
                             Down
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            onClick={() =>
+                              setSelectedSignup({
+                                id: item.id,
+                                userId: item.userId,
+                                position: item.position,
+                                attendanceStatus: item.attendanceStatus,
+                                attendanceNote: item.attendanceNote,
+                                arriveAt: item.arriveAt,
+                                leaveAt: item.leaveAt,
+                                createdAt: item.createdAt,
+                                user: item.user,
+                              })
+                            }
+                          >
+                            Edit time
                           </button>
                         </>
                       ) : (
@@ -975,9 +1014,26 @@ export function AdminDashboard({
                           >
                             Remove guest
                           </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            disabled={busy || idx === 0}
+                            onClick={() => swapGuests(arr[idx - 1].id, item.id)}
+                          >
+                            Up
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            disabled={busy || idx === arr.length - 1}
+                            onClick={() => swapGuests(item.id, arr[idx + 1].id)}
+                          >
+                            Down
+                          </button>
                         </>
                       )}
                     </div>
+                  </div>
                   </div>
                 ))}
               </div>
@@ -1030,6 +1086,46 @@ export function AdminDashboard({
             <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
           )}
           {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+        </div>
+      ) : null}
+
+      {mode === "signups" && selectedSignup ? (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setSelectedSignup(null)} />
+          <div
+            className="relative z-10 ml-auto h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl dark:bg-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+                  {selectedSignup.user.name ?? selectedSignup.user.email ?? "User"}
+                </div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Edit time, note, and attendance status
+                </div>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setSelectedSignup(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <AdminSignupAvailability
+                signUpId={selectedSignup.id}
+                defaultArriveAt={defaultArriveAt}
+                defaultLeaveAt={defaultLeaveAt}
+                initialStatus={selectedSignup.attendanceStatus}
+                initialNote={selectedSignup.attendanceNote}
+                initialArriveAt={selectedSignup.arriveAt}
+                initialLeaveAt={selectedSignup.leaveAt}
+              />
+            </div>
+          </div>
         </div>
       ) : null}
 
