@@ -482,6 +482,12 @@ export function AdminDashboard({
     }
   };
 
+  const confirmUserRoleChange = (label: string, role: "admin" | "member", nextValue: boolean) => {
+    const action = nextValue ? "set" : "unset";
+    const roleLabel = role === "admin" ? "admin" : "member";
+    return window.confirm(`Are you sure you want to ${action} ${roleLabel} for ${label}?`);
+  };
+
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -1092,7 +1098,10 @@ export function AdminDashboard({
                         type="button"
                         className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
                         disabled={busy}
-                        onClick={() => setUser(u.id, { setAdmin: !admin })}
+                        onClick={() =>
+                          confirmUserRoleChange(userLabel, "admin", !admin) &&
+                          setUser(u.id, { setAdmin: !admin })
+                        }
                       >
                         {admin ? "Remove admin" : "Make admin"}
                       </button>
@@ -1110,7 +1119,10 @@ export function AdminDashboard({
                         type="button"
                         className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
                         disabled={busy}
-                        onClick={() => setUser(u.id, { member: !u.member })}
+                        onClick={() =>
+                          confirmUserRoleChange(userLabel, "member", !u.member) &&
+                          setUser(u.id, { member: !u.member })
+                        }
                       >
                         {u.member ? "Unset member" : "Set member"}
                       </button>
@@ -1184,7 +1196,10 @@ export function AdminDashboard({
                               type="button"
                               className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
                               disabled={busy}
-                              onClick={() => setUser(u.id, { setAdmin: !admin })}
+                              onClick={() =>
+                                confirmUserRoleChange(userLabel, "admin", !admin) &&
+                                setUser(u.id, { setAdmin: !admin })
+                              }
                             >
                               {admin ? "Remove admin" : "Make admin"}
                             </button>
@@ -1202,7 +1217,10 @@ export function AdminDashboard({
                               type="button"
                               className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
                               disabled={busy}
-                              onClick={() => setUser(u.id, { member: !u.member })}
+                              onClick={() =>
+                                confirmUserRoleChange(userLabel, "member", !u.member) &&
+                                setUser(u.id, { member: !u.member })
+                              }
                             >
                               {u.member ? "Unset member" : "Set member"}
                             </button>
