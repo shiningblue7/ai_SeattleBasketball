@@ -636,7 +636,7 @@ export function AdminDashboard({
                             </label>
                             <input
                               id={`schedule-title-${s.id}`}
-                              className="h-9 w-full min-w-[220px] rounded-xl border border-zinc-300 bg-white px-3 text-sm"
+                              className="h-9 w-full min-w-[220px] rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 [color-scheme:light] dark:bg-white dark:text-zinc-900 dark:placeholder:text-zinc-500"
                               value={titleEdits[s.id] ?? s.title}
                               disabled={editsDisabled}
                               onChange={(e) =>
@@ -657,7 +657,7 @@ export function AdminDashboard({
                             </label>
                             <input
                               id={`schedule-date-${s.id}`}
-                              className="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm"
+                              className="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 [color-scheme:light] dark:bg-white dark:text-zinc-900 dark:placeholder:text-zinc-500"
                               type="datetime-local"
                               value={dateEdits[s.id] ?? toDatetimeLocalValue(s.date)}
                               disabled={editsDisabled}
@@ -706,7 +706,7 @@ export function AdminDashboard({
                           </label>
                           <input
                             id={`schedule-limit-${s.id}`}
-                            className="h-9 w-24 rounded-xl border border-zinc-300 px-3 text-sm"
+                            className="h-9 w-24 rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 [color-scheme:light] dark:bg-white dark:text-zinc-900 dark:placeholder:text-zinc-500"
                             type="number"
                             min={1}
                             value={limitEdits[s.id] ?? s.limit}
