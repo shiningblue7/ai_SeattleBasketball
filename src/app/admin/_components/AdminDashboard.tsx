@@ -969,19 +969,27 @@ export function AdminDashboard({
                           </button>
                           <button
                             type="button"
-                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
+                              idx === waitlistStartIndex
+                                ? "border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400"
+                                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            }`}
                             disabled={busy || idx === 0}
                             onClick={() => swap(arr[idx - 1].id, item.id)}
                           >
-                            Up
+                            {idx === waitlistStartIndex ? "Promote" : "Up"}
                           </button>
                           <button
                             type="button"
-                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
+                              idx === waitlistStartIndex - 1
+                                ? "border border-amber-600 bg-amber-600 text-white hover:bg-amber-700 dark:border-amber-500 dark:bg-amber-500 dark:text-white dark:hover:bg-amber-400"
+                                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            }`}
                             disabled={busy || idx === arr.length - 1}
                             onClick={() => swap(item.id, arr[idx + 1].id)}
                           >
-                            Down
+                            {idx === waitlistStartIndex - 1 ? "Send to waitlist" : "Down"}
                           </button>
                           <button
                             type="button"
@@ -1016,19 +1024,27 @@ export function AdminDashboard({
                           </button>
                           <button
                             type="button"
-                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
+                              idx === waitlistStartIndex
+                                ? "border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400"
+                                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            }`}
                             disabled={busy || idx === 0}
                             onClick={() => swapGuests(arr[idx - 1].id, item.id)}
                           >
-                            Up
+                            {idx === waitlistStartIndex ? "Promote" : "Up"}
                           </button>
                           <button
                             type="button"
-                            className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
+                              idx === waitlistStartIndex - 1
+                                ? "border border-amber-600 bg-amber-600 text-white hover:bg-amber-700 dark:border-amber-500 dark:bg-amber-500 dark:text-white dark:hover:bg-amber-400"
+                                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
+                            }`}
                             disabled={busy || idx === arr.length - 1}
                             onClick={() => swapGuests(item.id, arr[idx + 1].id)}
                           >
-                            Down
+                            {idx === waitlistStartIndex - 1 ? "Send to waitlist" : "Down"}
                           </button>
                         </>
                       )}
