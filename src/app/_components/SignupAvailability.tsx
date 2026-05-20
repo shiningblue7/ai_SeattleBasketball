@@ -60,22 +60,26 @@ export function SignupAvailability({
   const save = async () => {
     setError(null);
     setBusy(true);
-    try {
-      const resp = await fetch("/api/signups/availability", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          scheduleId,
-          attendanceStatus: status,
-          attendanceNote: note.trim() || null,
-          arriveAt: arriveAt.trim() || null,
-          leaveAt: leaveAt.trim() || null,
-        }),
-      });
-
-      if (!resp.ok) {
-        const data = (await resp.json().catch(() => null)) as
-          | { error?: string }
+    return (
+      <div className="grid gap-2 min-w-0">
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:gap-2 min-w-0">
+          <div className="min-w-0 flex-1">
+            <input
+              type="time"
+              className="h-10 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
+              value={arriveAt}
+              onChange={(e) => setArriveAt(e.target.value)}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <input
+              type="time"
+              className="h-10 w-full min-w-0 max-w-full rounded-xl border border-zinc-300 px-3 text-sm leading-none"
+              value={leaveAt}
+              onChange={(e) => setLeaveAt(e.target.value)}
+            />
+          </div>
+        </div>
           | null;
         setError(data?.error ?? "Failed to update availability");
         return;
