@@ -114,6 +114,7 @@ export function AdminDashboard({
 
   const [guestOfUserId, setGuestOfUserId] = useState<string>("");
   const [guestName, setGuestName] = useState<string>("");
+  const [userFilter, setUserFilter] = useState<"all" | "admins" | "members" | "regular">("all");
 
   const selectedSignupsSchedule = signupsSchedule ?? activeSchedule;
   const activeScheduleId = selectedSignupsSchedule?.id ?? null;
@@ -254,6 +255,15 @@ export function AdminDashboard({
     schedulePageClamped * SCHEDULES_PAGE_SIZE,
     schedulePageClamped * SCHEDULES_PAGE_SIZE + SCHEDULES_PAGE_SIZE
   );
+
+  const filteredUsers = users.filter((u) => {
+    const admin = isAdmin(u.roles);
+    const member = u.member;
+    if (userFilter === "admins") return admin;
+    if (userFilter === "members") return member;
+    if (userFilter === "regular") return !admin && !member;
+    return true;
+  });
 
   const updateSchedule = async (
     scheduleId: string,
@@ -927,58 +937,133 @@ export function AdminDashboard({
       ) : null}
 
       {mode === "users" ? (
-        <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
           <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Users</div>
-          <div className="mt-4 grid gap-2">
-            {users.map((u) => {
-              const admin = isAdmin(u.roles);
-              const adminNotify = hasRole(u.roles, "admin_notify");
-              const userLabel = u.name ?? u.email ?? u.id;
-              return (
-                <div key={u.id} className="flex flex-col gap-2 rounded-xl border border-zinc-100 p-3 dark:border-slate-600 dark:bg-slate-700">
-                  <div className="text-sm font-medium text-zinc-950 dark:text-zinc-100">
-                    {userLabel}
-                  </div>
-                  <div className="text-xs text-zinc-600 dark:text-zinc-400">{u.email ?? ""}</div>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <button
-                      type="button"
-                      className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-600 dark:text-zinc-100 dark:hover:bg-slate-500"
-                      disabled={busy}
-                      onClick={() => setUser(u.id, { setAdmin: !admin })}
-                    >
-                      {admin ? "Remove admin" : "Make admin"}
-                    </button>
-                    {admin ? (
-                      <button
-                        type="button"
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                        disabled={busy}
-                        onClick={() => setUser(u.id, { adminNotify: !adminNotify })}
-                      >
-                        {adminNotify ? "Notify: on" : "Notify: off"}
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
-                      disabled={busy}
-                      onClick={() => setUser(u.id, { member: !u.member })}
-                    >
-                      {u.member ? "Unset member" : "Set member"}
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex h-9 items-center justify-center rounded-full border border-red-300 bg-white px-4 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                      disabled={busy}
-                      onClick={() => deleteUser(u.id, userLabel)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "all", label: "All" },
+                { value: "admins", label: "Admins" },
+                { value: "members", label: "Members" },
+                { value: "regular", label: "Non-admin/member" },
+              ].map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  className={`inline-flex h-9 items-center justify-center rounded-full border px-4 text-xs font-medium transition ${
+                    userFilter === filter.value
+                      ? "border-zinc-900 bg-zinc-950 text-white dark:border-slate-400 dark:bg-slate-300 dark:text-zinc-950"
+                      : "border-zinc-300 bg-white text-zinc-900 hover:border-zinc-900 hover:bg-zinc-50 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:border-slate-400 dark:hover:bg-slate-600"
+                  }`}
+                  onClick={() => setUserFilter(filter.value as typeof userFilter)}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+              Showing {filteredUsers.length} of {users.length} users
+            </div>
+          </div>
+          <div className="mt-4 overflow-x-auto rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <table className="min-w-full border-collapse text-left text-sm">
+              <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-slate-900 dark:text-slate-400">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Roles</th>
+                  <th className="px-4 py-3">Member</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((u) => {
+                    const admin = isAdmin(u.roles);
+                    const adminNotify = hasRole(u.roles, "admin_notify");
+                    const userLabel = u.name ?? u.email ?? u.id;
+                    return (
+                      <tr key={u.id} className="border-t border-zinc-200 last:border-b dark:border-slate-700">
+                        <td className="px-4 py-4 align-top">
+                          <div className="text-sm font-medium text-zinc-950 dark:text-zinc-100">{userLabel}</div>
+                          <div className="text-sm text-zinc-600 dark:text-zinc-400">{u.email ?? ""}</div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="flex flex-wrap gap-2">
+                            {admin ? (
+                              <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">
+                                Admin
+                              </span>
+                            ) : null}
+                            {adminNotify ? (
+                              <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">
+                                Notify
+                              </span>
+                            ) : null}
+                            {u.member ? (
+                              <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">
+                                Member
+                              </span>
+                            ) : null}
+                            {!admin && !u.member && !adminNotify ? (
+                              <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">
+                                User
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="text-sm text-zinc-700 dark:text-zinc-300">{u.member ? "Yes" : "No"}</div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
+                              disabled={busy}
+                              onClick={() => setUser(u.id, { setAdmin: !admin })}
+                            >
+                              {admin ? "Remove admin" : "Make admin"}
+                            </button>
+                            {admin ? (
+                              <button
+                                type="button"
+                                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
+                                disabled={busy}
+                                onClick={() => setUser(u.id, { adminNotify: !adminNotify })}
+                              >
+                                {adminNotify ? "Notify: on" : "Notify: off"}
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
+                              disabled={busy}
+                              onClick={() => setUser(u.id, { member: !u.member })}
+                            >
+                              {u.member ? "Unset member" : "Set member"}
+                            </button>
+                            <button
+                              type="button"
+                              className="inline-flex h-9 items-center justify-center rounded-full border border-red-300 bg-white px-4 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60 dark:bg-slate-700 dark:text-red-400 dark:hover:bg-slate-600"
+                              disabled={busy}
+                              onClick={() => deleteUser(u.id, userLabel)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-sm text-zinc-500 dark:text-zinc-400">
+                      No users match this filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       ) : null}
