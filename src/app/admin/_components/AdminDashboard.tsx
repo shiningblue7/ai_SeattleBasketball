@@ -123,6 +123,7 @@ export function AdminDashboard({
   const [schedulePage, setSchedulePage] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
 
   const [guestOfUserId, setGuestOfUserId] = useState<string>("");
   const [guestName, setGuestName] = useState<string>("");
@@ -567,6 +568,79 @@ export function AdminDashboard({
               Create
             </button>
             {error ? <div className="text-sm text-red-600">{error}</div> : null}
+          </div>
+        </div>
+      ) : null}
+
+      {selectedUser ? (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setSelectedUser(null)} />
+          <div className="ml-auto w-full max-w-md bg-white p-6 dark:bg-slate-900">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">{selectedUser.name ?? selectedUser.email ?? selectedUser.id}</div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">{selectedUser.email}</div>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setSelectedUser(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-2">
+                {isAdmin(selectedUser.roles) ? (
+                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700">Admin</span>
+                ) : null}
+                {hasRole(selectedUser.roles, "admin_notify") ? (
+                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700">Notify</span>
+                ) : null}
+                {selectedUser.member ? (
+                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700">Member</span>
+                ) : null}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2">
+                <button
+                  type="button"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+                  disabled={busy}
+                  onClick={() => {
+                    setUser(selectedUser.id, { setAdmin: !isAdmin(selectedUser.roles) });
+                    setSelectedUser(null);
+                  }}
+                >
+                  {isAdmin(selectedUser.roles) ? "Remove admin" : "Make admin"}
+                </button>
+
+                <button
+                  type="button"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+                  disabled={busy}
+                  onClick={() => {
+                    setUser(selectedUser.id, { member: !selectedUser.member });
+                    setSelectedUser(null);
+                  }}
+                >
+                  {selectedUser.member ? "Unset member" : "Set member"}
+                </button>
+
+                <button
+                  type="button"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-red-300 bg-white px-4 text-sm font-medium text-red-700 hover:bg-red-50"
+                  disabled={busy}
+                  onClick={() => {
+                    deleteUser(selectedUser.id, selectedUser.name ?? selectedUser.email ?? selectedUser.id);
+                    setSelectedUser(null);
+                  }}
+                >
+                  Delete user
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -1053,7 +1127,45 @@ export function AdminDashboard({
               Showing {filteredUsers.length} of {users.length} users
             </div>
           </div>
-          <div className="mt-4 overflow-x-auto rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mt-4 sm:hidden">
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              {filteredUsers.map((u) => {
+                const admin = isAdmin(u.roles);
+                const adminNotify = hasRole(u.roles, "admin_notify");
+                const userLabel = u.name ?? u.email ?? u.id;
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    className="w-full text-left px-4 py-3 border-b last:border-b-0 hover:bg-zinc-50 dark:hover:bg-slate-700"
+                    onClick={() => setSelectedUser(u)}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm font-medium text-zinc-950 dark:text-zinc-100">{userLabel}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {admin ? (
+                          <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">Admin</span>
+                        ) : null}
+                        {adminNotify ? (
+                          <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">Notify</span>
+                        ) : null}
+                        {u.member ? (
+                          <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">Member</span>
+                        ) : null}
+                        {!admin && !u.member && !adminNotify ? (
+                          <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-slate-700 dark:text-zinc-100">User</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="hidden sm:block mt-4 overflow-x-auto rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-slate-900 dark:text-slate-400">
                 <tr>
