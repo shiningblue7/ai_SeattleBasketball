@@ -608,10 +608,10 @@ export function AdminDashboard({
                   type="button"
                   className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
                   disabled={busy}
-                  onClick={() => {
-                    setUser(selectedUser.id, { setAdmin: !isAdmin(selectedUser.roles) });
-                    setSelectedUser(null);
-                  }}
+                  onClick={async () => {
+                      await setUser(selectedUser.id, { setAdmin: !isAdmin(selectedUser.roles) });
+                      setSelectedUser(null);
+                    }}
                 >
                   {isAdmin(selectedUser.roles) ? "Remove admin" : "Make admin"}
                 </button>
@@ -620,10 +620,10 @@ export function AdminDashboard({
                   type="button"
                   className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
                   disabled={busy}
-                  onClick={() => {
-                    setUser(selectedUser.id, { member: !selectedUser.member });
-                    setSelectedUser(null);
-                  }}
+                  onClick={async () => {
+                      await setUser(selectedUser.id, { member: !selectedUser.member });
+                      setSelectedUser(null);
+                    }}
                 >
                   {selectedUser.member ? "Unset member" : "Set member"}
                 </button>
@@ -632,10 +632,10 @@ export function AdminDashboard({
                   type="button"
                   className="inline-flex h-11 items-center justify-center rounded-full border border-red-300 bg-white px-4 text-sm font-medium text-red-700 hover:bg-red-50"
                   disabled={busy}
-                  onClick={() => {
-                    deleteUser(selectedUser.id, selectedUser.name ?? selectedUser.email ?? selectedUser.id);
-                    setSelectedUser(null);
-                  }}
+                  onClick={async () => {
+                      await deleteUser(selectedUser.id, selectedUser.name ?? selectedUser.email ?? selectedUser.id);
+                      setSelectedUser(null);
+                    }}
                 >
                   Delete user
                 </button>
