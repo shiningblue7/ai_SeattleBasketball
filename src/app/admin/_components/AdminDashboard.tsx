@@ -995,7 +995,7 @@ export function AdminDashboard({
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
                               idx === waitlistStartIndex
                                 ? "border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400"
-                                : "border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100 dark:hover:bg-sky-950/35"
+                                : "border border-sky-300 bg-sky-100 text-sky-900 hover:bg-sky-200 dark:border-sky-500/70 dark:bg-sky-900/45 dark:text-sky-50 dark:hover:bg-sky-900/60"
                             }`}
                             disabled={busy || idx === 0}
                             onClick={() => swap(arr[idx - 1].id, item.id)}
@@ -1050,7 +1050,7 @@ export function AdminDashboard({
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
                               idx === waitlistStartIndex
                                 ? "border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400"
-                                : "border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100 dark:hover:bg-sky-950/35"
+                                : "border border-sky-300 bg-sky-100 text-sky-900 hover:bg-sky-200 dark:border-sky-500/70 dark:bg-sky-900/45 dark:text-sky-50 dark:hover:bg-sky-900/60"
                             }`}
                             disabled={busy || idx === 0}
                             onClick={() => swapGuests(arr[idx - 1].id, item.id)}
