@@ -44,13 +44,11 @@ test.describe("admin user management", () => {
 
     await signInAsAdmin(page);
     await page.goto("/admin/users");
-    const card = page
-      .locator("div.rounded-xl")
-      .filter({ hasText: "Player One" })
-      .first();
-    await expect(card).toBeVisible();
+    const row = page.locator("tr").filter({ hasText: "Player One" }).first();
+    await expect(row).toBeVisible();
 
-    await card.getByRole("button", { name: "Make admin" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await row.getByRole("button", { name: "Make admin" }).click();
 
     await expect.poll(async () => {
       const user = await getUserByEmail({ email: "player@example.com" });
@@ -60,7 +58,8 @@ test.describe("admin user management", () => {
       };
     }).toEqual({ admin: true, notify: true });
 
-    await card.getByRole("button", { name: "Set member" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await row.getByRole("button", { name: "Set member" }).click();
 
     await expect.poll(async () => {
       const user = await getUserByEmail({ email: "player@example.com" });
@@ -77,14 +76,11 @@ test.describe("admin user management", () => {
 
     await signInAsAdmin(page);
     await page.goto("/admin/users");
-    const card = page
-      .locator("div.rounded-xl")
-      .filter({ hasText: "Remove Me" })
-      .first();
-    await expect(card).toBeVisible();
+    const row = page.locator("tr").filter({ hasText: "Remove Me" }).first();
+    await expect(row).toBeVisible();
 
     page.once("dialog", (dialog) => dialog.accept());
-    await card.getByRole("button", { name: "Delete" }).click();
+    await row.getByRole("button", { name: "Delete" }).click();
 
     await expect.poll(async () => {
       const user = await getUserByEmail({ email: "remove@example.com" });
@@ -101,14 +97,12 @@ test.describe("admin user management", () => {
 
     await signInAsAdmin(page);
     await page.goto("/admin/users");
-    const card = page
-      .locator("div.rounded-xl")
-      .filter({ hasText: "Notify User" })
-      .first();
-    await expect(card).toBeVisible();
+    const row = page.locator("tr").filter({ hasText: "Notify User" }).first();
+    await expect(row).toBeVisible();
 
-    await card.getByRole("button", { name: "Make admin" }).click();
-    await card.getByRole("button", { name: "Notify: on" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await row.getByRole("button", { name: "Make admin" }).click();
+    await row.getByRole("button", { name: "Notify: on" }).click();
 
     await expect.poll(async () => {
       const user = await getUserByEmail({ email: "notify@example.com" });

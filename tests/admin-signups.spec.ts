@@ -2,9 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   disconnectDb,
+  listGuestSignupsForSchedule,
   listSignupsForSchedule,
   resetDb,
   seedSchedule,
+  seedGuestSignup,
   seedSignup,
   seedUser,
 } from "./helpers/db";
@@ -104,5 +106,60 @@ test.describe("admin signups", () => {
       const signups = await listSignupsForSchedule({ scheduleId: schedule.id });
       return signups.map((s) => s.userId);
     }).toEqual([userB.id, userA.id]);
+  });
+
+  test("admin can promote a waitlist guest into playing", async ({ page }) => {
+    const schedule = await seedSchedule({
+      title: "Boundary Run",
+      date: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      active: true,
+      limit: 2,
+    });
+    const userA = await seedUser({
+      email: "boundary1@example.com",
+      password: "password123",
+      name: "Boundary One",
+    });
+    const userB = await seedUser({
+      email: "boundary2@example.com",
+      password: "password123",
+      name: "Boundary Two",
+    });
+    const guestOwner = await seedUser({
+      email: "guest-owner@example.com",
+      password: "password123",
+      name: "Guest Owner",
+    });
+    await seedSignup({ scheduleId: schedule.id, userId: userA.id, position: 1 });
+    await seedSignup({ scheduleId: schedule.id, userId: userB.id, position: 2 });
+    await seedGuestSignup({
+      scheduleId: schedule.id,
+      guestName: "Waitlist Guest",
+      guestOfUserId: guestOwner.id,
+      addedByUserId: guestOwner.id,
+      position: 3,
+    });
+
+    await signInAsAdmin(page);
+    await page.goto(`/admin/signups?scheduleId=${schedule.id}`);
+
+    await expect(page.getByText("Waitlist starts here")).toBeVisible();
+
+    const guestCard = page
+      .locator("div.rounded-xl")
+      .filter({ hasText: "Waitlist Guest" })
+      .first();
+    await expect(guestCard).toBeVisible();
+    await guestCard.getByRole("button", { name: "Promote" }).click();
+
+    await expect.poll(async () => {
+      const users = await listSignupsForSchedule({ scheduleId: schedule.id });
+      return users.map((s) => s.userId);
+    }).toEqual([userA.id, userB.id]);
+
+    await expect.poll(async () => {
+      const guests = await listGuestSignupsForSchedule({ scheduleId: schedule.id });
+      return guests.map((g) => g.position);
+    }).toEqual([2]);
   });
 });
