@@ -123,7 +123,6 @@ export function AdminDashboard({
   const [schedulePage, setSchedulePage] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
 
   const [guestOfUserId, setGuestOfUserId] = useState<string>("");
   const [guestName, setGuestName] = useState<string>("");
@@ -571,80 +570,6 @@ export function AdminDashboard({
               Create
             </button>
             {error ? <div className="text-sm text-red-600">{error}</div> : null}
-          </div>
-        </div>
-      ) : null}
-
-      {selectedUser ? (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setSelectedUser(null)} />
-          <div className="ml-auto w-full max-w-md bg-white p-6 dark:bg-slate-900">
-              <div className="flex items-start justify-between">
-              <div>
-                <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">{selectedUser.name ?? selectedUser.email ?? selectedUser.id}</div>
-                <div className="text-sm text-zinc-600 dark:text-zinc-400">{selectedUser.email}</div>
-              </div>
-              <button
-                type="button"
-                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50"
-                onClick={() => setSelectedUser(null)}
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="mt-4">
-              {error ? <div className="text-sm text-red-600">{error}</div> : null}
-              <div className="flex flex-wrap gap-2">
-                {isAdmin(selectedUser.roles) ? (
-                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700">Admin</span>
-                ) : null}
-                {hasRole(selectedUser.roles, "admin_notify") ? (
-                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700">Notify</span>
-                ) : null}
-                {selectedUser.member ? (
-                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-700">Member</span>
-                ) : null}
-              </div>
-
-              <div className="mt-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
-                  disabled={busy}
-                  onClick={async () => {
-                      await setUser(selectedUser.id, { setAdmin: !isAdmin(selectedUser.roles) });
-                      setSelectedUser(null);
-                    }}
-                >
-                  {isAdmin(selectedUser.roles) ? "Remove admin" : "Make admin"}
-                </button>
-
-                <button
-                  type="button"
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
-                  disabled={busy}
-                  onClick={async () => {
-                      await setUser(selectedUser.id, { member: !selectedUser.member });
-                      setSelectedUser(null);
-                    }}
-                >
-                  {selectedUser.member ? "Unset member" : "Set member"}
-                </button>
-
-                <button
-                  type="button"
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-red-300 bg-white px-4 text-sm font-medium text-red-700 hover:bg-red-50"
-                  disabled={busy}
-                  onClick={async () => {
-                      await deleteUser(selectedUser.id, selectedUser.name ?? selectedUser.email ?? selectedUser.id);
-                      setSelectedUser(null);
-                    }}
-                >
-                  Delete user
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       ) : null}
@@ -1138,15 +1063,14 @@ export function AdminDashboard({
                 const adminNotify = hasRole(u.roles, "admin_notify");
                 const userLabel = u.name ?? u.email ?? u.id;
                 return (
-                  <button
+                  <div
                     key={u.id}
-                    type="button"
-                    className="w-full text-left px-4 py-3 border-b last:border-b-0 hover:bg-zinc-50 dark:hover:bg-slate-700"
-                    onClick={() => setSelectedUser(u)}
+                    className="border-b px-4 py-3 last:border-b-0 hover:bg-zinc-50 dark:hover:bg-slate-700"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm font-medium text-zinc-950 dark:text-zinc-100">{userLabel}</div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-100">{userLabel}</div>
+                        <div className="truncate text-xs text-zinc-600 dark:text-zinc-400">{u.email ?? ""}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         {admin ? (
@@ -1163,8 +1087,44 @@ export function AdminDashboard({
                         ) : null}
                       </div>
                     </div>
-                  </button>
-                );
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
+                        disabled={busy}
+                        onClick={() => setUser(u.id, { setAdmin: !admin })}
+                      >
+                        {admin ? "Remove admin" : "Make admin"}
+                      </button>
+                      {admin ? (
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
+                          disabled={busy}
+                          onClick={() => setUser(u.id, { adminNotify: !adminNotify })}
+                        >
+                          {adminNotify ? "Notify: on" : "Notify: off"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
+                        disabled={busy}
+                        onClick={() => setUser(u.id, { member: !u.member })}
+                      >
+                        {u.member ? "Unset member" : "Set member"}
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-red-300 bg-white px-3 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60 dark:bg-slate-700 dark:text-red-400 dark:hover:bg-slate-600"
+                        disabled={busy}
+                        onClick={() => deleteUser(u.id, userLabel)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  );
               })}
             </div>
           </div>
