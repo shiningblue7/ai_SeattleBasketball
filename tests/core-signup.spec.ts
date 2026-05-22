@@ -162,11 +162,11 @@ test.describe("core signup flow", () => {
     await page.getByPlaceholder("Guest name").fill("Guest One");
     await page.getByRole("button", { name: "Add guest" }).click();
 
-    const guestRow = page.getByText("Guest One (guest)");
-    await expect(guestRow).toBeVisible();
+    const guestRows = page.locator("li").filter({ hasText: "Guest One" });
+    await expect(guestRows).toHaveCount(1);
 
-    await page.getByRole("button", { name: "Remove" }).click();
-    await expect(guestRow).toHaveCount(0);
+    await guestRows.getByRole("button", { name: "Withdraw guest" }).click();
+    await expect(guestRows).toHaveCount(0);
   });
 
   test("waitlist status displays when user is waitlisted", async ({ page }) => {
@@ -200,9 +200,8 @@ test.describe("core signup flow", () => {
 
     await page.getByRole("button", { name: "Sign up" }).click();
 
-    await expect(page.getByText("Your status")).toBeVisible();
-    await expect(
-      page.getByText("Waitlist #", { exact: false }).first()
-    ).toBeVisible();
+    const waitlistRow = page.locator("li").filter({ hasText: "Waitlist Two" });
+    await expect(waitlistRow).toHaveCount(1);
+    await expect(waitlistRow.getByText("#1 on waitlist", { exact: false })).toBeVisible();
   });
 });
