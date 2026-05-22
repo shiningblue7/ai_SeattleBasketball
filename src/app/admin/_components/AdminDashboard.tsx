@@ -298,6 +298,7 @@ export function AdminDashboard({
   const waitlistStartIndex = selectedSignupsSchedule ? selectedSignupsSchedule.limit : 0;
   const playingCount = Math.min(waitlistStartIndex, combinedSignUps.length);
   const waitlistCount = Math.max(0, combinedSignUps.length - waitlistStartIndex);
+  const hasWaitlist = waitlistCount > 0;
   const guestCount = combinedSignUps.filter((item) => item.kind === "guest").length;
 
   const filteredUsers = users.filter((u) => {
@@ -993,26 +994,26 @@ export function AdminDashboard({
                           <button
                             type="button"
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
-                              idx === waitlistStartIndex
+                              idx === waitlistStartIndex && hasWaitlist
                                 ? "border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400"
                                 : "border border-sky-300 bg-sky-100 text-sky-900 hover:bg-sky-200 dark:border-sky-500/70 dark:bg-sky-900/45 dark:text-sky-50 dark:hover:bg-sky-900/60"
                             }`}
                             disabled={busy || idx === 0}
                             onClick={() => swap(arr[idx - 1].id, item.id)}
                           >
-                            {idx === waitlistStartIndex ? "Promote" : "Up"}
+                            {idx === waitlistStartIndex && hasWaitlist ? "Promote" : "Up"}
                           </button>
                           <button
                             type="button"
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
-                              idx === waitlistStartIndex - 1
+                              idx === waitlistStartIndex - 1 && hasWaitlist
                                 ? "border border-amber-600 bg-amber-600 text-white hover:bg-amber-700 dark:border-amber-500 dark:bg-amber-500 dark:text-white dark:hover:bg-amber-400"
                                 : "border border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/20 dark:text-orange-100 dark:hover:bg-orange-950/35"
                             }`}
                             disabled={busy || idx === arr.length - 1}
                             onClick={() => swap(item.id, arr[idx + 1].id)}
                           >
-                            {idx === waitlistStartIndex - 1 ? "Send to waitlist" : "Down"}
+                            {idx === waitlistStartIndex - 1 && hasWaitlist ? "Send to waitlist" : "Down"}
                           </button>
                           <button
                             type="button"
@@ -1048,26 +1049,26 @@ export function AdminDashboard({
                           <button
                             type="button"
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
-                              idx === waitlistStartIndex
+                              idx === waitlistStartIndex && hasWaitlist
                                 ? "border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400"
                                 : "border border-sky-300 bg-sky-100 text-sky-900 hover:bg-sky-200 dark:border-sky-500/70 dark:bg-sky-900/45 dark:text-sky-50 dark:hover:bg-sky-900/60"
                             }`}
                             disabled={busy || idx === 0}
                             onClick={() => swapGuests(arr[idx - 1].id, item.id)}
                           >
-                            {idx === waitlistStartIndex ? "Promote" : "Up"}
+                            {idx === waitlistStartIndex && hasWaitlist ? "Promote" : "Up"}
                           </button>
                           <button
                             type="button"
                             className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-xs font-medium disabled:opacity-60 ${
-                              idx === waitlistStartIndex - 1
+                              idx === waitlistStartIndex - 1 && hasWaitlist
                                 ? "border border-amber-600 bg-amber-600 text-white hover:bg-amber-700 dark:border-amber-500 dark:bg-amber-500 dark:text-white dark:hover:bg-amber-400"
                                 : "border border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/20 dark:text-orange-100 dark:hover:bg-orange-950/35"
                             }`}
                             disabled={busy || idx === arr.length - 1}
                             onClick={() => swapGuests(item.id, arr[idx + 1].id)}
                           >
-                            {idx === waitlistStartIndex - 1 ? "Send to waitlist" : "Down"}
+                            {idx === waitlistStartIndex - 1 && hasWaitlist ? "Send to waitlist" : "Down"}
                           </button>
                         </>
                       )}
