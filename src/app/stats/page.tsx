@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { ScheduleEventType } from "@prisma/client";
+import { authOptions } from "@/auth";
 
 type WindowKey = "90d" | "all";
 
@@ -34,6 +37,14 @@ export default async function StatsPage({
     | Record<string, string | string[] | undefined>
     | Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    const sp = await Promise.resolve(searchParams ?? {});
+    const windowKey = clampWindow(Array.isArray(sp.window) ? sp.window[0] : sp.window);
+    const callbackUrl = windowKey === "90d" ? "/stats" : `/stats?window=${encodeURIComponent(windowKey)}`;
+    redirect(`/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  }
+
   const sp = await Promise.resolve(searchParams ?? {});
   const windowKey = clampWindow(Array.isArray(sp.window) ? sp.window[0] : sp.window);
   const since = windowKey === "all" ? null : new Date(Date.now() - NINETY_DAYS_MS);
