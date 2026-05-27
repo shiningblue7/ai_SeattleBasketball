@@ -28,11 +28,11 @@ export function TopNav(
   const items = useMemo(() => {
     const base: Array<{ href: string; label: string; show: boolean }> = [
       { href: "/", label: "Home", show: true },
-      { href: "/stats", label: "Stats", show: true },
+      { href: "/stats", label: "Stats", show: signedIn },
       { href: "/admin", label: "Admin", show: isAdmin },
     ];
     return base.filter((i) => i.show);
-  }, [isAdmin]);
+  }, [isAdmin, signedIn]);
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname?.startsWith(href));
 
