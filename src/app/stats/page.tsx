@@ -113,9 +113,9 @@ export default async function StatsPage({
   ]);
 
   // Leaderboards
-  const signupJoinsByUser = new Map<string, number>();
-  const bailoutsByUser = new Map<string, number>();
-  const clutchByUser = new Map<string, number>();
+  const joinedSchedulesByUser = new Map<string, Set<string>>();
+  const bailedSchedulesByUser = new Map<string, Set<string>>();
+  const clutchSchedulesByUser = new Map<string, Set<string>>();
 
   // Trends
   const peakHourCounts = new Array<number>(7 * 24).fill(0);
@@ -133,11 +133,15 @@ export default async function StatsPage({
     const isLeave = leaveTypes.has(e.type);
 
     if (isJoin && targetUserId) {
-      signupJoinsByUser.set(targetUserId, (signupJoinsByUser.get(targetUserId) ?? 0) + 1);
+      const joined = joinedSchedulesByUser.get(targetUserId) ?? new Set<string>();
+      joined.add(e.scheduleId);
+      joinedSchedulesByUser.set(targetUserId, joined);
 
       const hoursBeforeStart = (schedule.date.getTime() - e.createdAt.getTime()) / (60 * 60 * 1000);
       if (hoursBeforeStart >= 0 && hoursBeforeStart <= 24) {
-        clutchByUser.set(targetUserId, (clutchByUser.get(targetUserId) ?? 0) + 1);
+        const clutch = clutchSchedulesByUser.get(targetUserId) ?? new Set<string>();
+        clutch.add(e.scheduleId);
+        clutchSchedulesByUser.set(targetUserId, clutch);
       }
 
       const dt = new Date(e.createdAt);
@@ -160,9 +164,18 @@ export default async function StatsPage({
     }
 
     if (isLeave && targetUserId) {
-      bailoutsByUser.set(targetUserId, (bailoutsByUser.get(targetUserId) ?? 0) + 1);
+      const bailed = bailedSchedulesByUser.get(targetUserId) ?? new Set<string>();
+      bailed.add(e.scheduleId);
+      bailedSchedulesByUser.set(targetUserId, bailed);
     }
   }
+
+  const signupJoinsByUser = new Map<string, number>();
+  for (const [userId, set] of joinedSchedulesByUser) signupJoinsByUser.set(userId, set.size);
+  const bailoutsByUser = new Map<string, number>();
+  for (const [userId, set] of bailedSchedulesByUser) bailoutsByUser.set(userId, set.size);
+  const clutchByUser = new Map<string, number>();
+  for (const [userId, set] of clutchSchedulesByUser) clutchByUser.set(userId, set.size);
 
   const guestsByUser = new Map<string, number>();
   for (const g of guestSignUps) {
@@ -294,16 +307,16 @@ export default async function StatsPage({
       <section className="mt-8">
         <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">Leaderboards</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <StatCard title="Most signups" subtitle="Counts join events">
+          <StatCard title="Most signups" subtitle="Unique schedules joined">
             <Leaderboard rows={topSignups} />
           </StatCard>
           <StatCard title="Most guests" subtitle="Guests attributed to member">
             <Leaderboard rows={topGuests} />
           </StatCard>
-          <StatCard title="Most bailouts" subtitle="Counts leave events">
+          <StatCard title="Most bailouts" subtitle="Unique schedules left after joining">
             <Leaderboard rows={topBailouts} />
           </StatCard>
-          <StatCard title="Most clutch signups" subtitle="Joined within 24h of start">
+          <StatCard title="Most clutch signups" subtitle="Unique schedules joined within 24h of start">
             <Leaderboard rows={topClutch} />
           </StatCard>
           <StatCard title="Most promotions" subtitle="Best effort from reorder events">
