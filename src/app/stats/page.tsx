@@ -63,6 +63,13 @@ export default async function StatsPage({
     currentSignupSchedulesByUser.set(s.userId, set);
   }
 
+  // Schedules in the current window (used for fill speed and event lookups).
+  const schedulesForWindow = await prisma.schedule.findMany({
+    where: since ? { date: { gte: since } } : {},
+    select: { id: true, title: true, date: true, createdAt: true, limit: true, active: true, archivedAt: true },
+  });
+  const scheduleById = new Map(schedulesForWindow.map((s) => [s.id, s]));
+
   const events = await prisma.scheduleEvent.findMany({
     where: {
       type: { in: [...eventTypes] },
@@ -84,14 +91,6 @@ export default async function StatsPage({
   });
 
   const scheduleIds = Array.from(new Set(events.map((e) => e.scheduleId)));
-  const schedules = await prisma.schedule.findMany({
-    where: {
-      id: { in: scheduleIds.length ? scheduleIds : ["__none__"] },
-      ...(since ? { date: { gte: since } } : {}),
-    },
-    select: { id: true, title: true, date: true, createdAt: true, limit: true },
-  });
-  const scheduleById = new Map(schedules.map((s) => [s.id, s]));
 
   const userIds = new Set<string>();
   for (const userId of currentSignupSchedulesByUser.keys()) userIds.add(userId);
@@ -137,8 +136,9 @@ export default async function StatsPage({
   // Trends
   const peakHourCounts = new Array<number>(7 * 24).fill(0);
 
-  // Schedule fill speed: filledAt = time of the Nth join event (ignores guests/leaves; good v1 approximation).
-  const joinTimesBySchedule = new Map<string, Date[]>();
+  // Schedule fill speed: use current signup + guest createdAt timestamps to approximate when the
+  // schedule reached its limit. This avoids relying on complete event history and matches what
+  // admins/users intuitively mean by "filled".
 
   for (const e of events) {
     const schedule = scheduleById.get(e.scheduleId) ?? e.schedule;
@@ -148,7 +148,6 @@ export default async function StatsPage({
     const targetUserId = e.targetUserId ?? e.actorUserId;
     const isSelfJoin = selfJoinTypes.has(e.type);
     const isSelfLeave = selfLeaveTypes.has(e.type);
-    const isAnyJoin = anyJoinTypes.has(e.type);
 
     if (isSelfJoin && targetUserId) {
       const joined = joinedSchedulesByUser.get(targetUserId) ?? new Set<string>();
@@ -175,12 +174,6 @@ export default async function StatsPage({
       if (weekdayIndex >= 0 && hour >= 0 && hour <= 23) {
         peakHourCounts[weekdayIndex * 24 + hour] += 1;
       }
-    }
-
-    if (isAnyJoin) {
-      const arr = joinTimesBySchedule.get(e.scheduleId) ?? [];
-      arr.push(e.createdAt);
-      joinTimesBySchedule.set(e.scheduleId, arr);
     }
 
     if (isSelfLeave && targetUserId) {
@@ -254,15 +247,39 @@ export default async function StatsPage({
   }
 
   const fillDurations: Array<{ scheduleId: string; ms: number }> = [];
-  for (const [scheduleId, joinTimes] of joinTimesBySchedule) {
-    const schedule = scheduleById.get(scheduleId);
-    if (!schedule) continue;
+  const scheduleIdsForFill = schedulesForWindow.map((s) => s.id);
+  const [signUpTimes, guestTimes] = await prisma.$transaction([
+    prisma.signUp.findMany({
+      where: { scheduleId: { in: scheduleIdsForFill.length ? scheduleIdsForFill : ["__none__"] } },
+      select: { scheduleId: true, createdAt: true },
+    }),
+    prisma.guestSignUp.findMany({
+      where: { scheduleId: { in: scheduleIdsForFill.length ? scheduleIdsForFill : ["__none__"] } },
+      select: { scheduleId: true, createdAt: true },
+    }),
+  ]);
+
+  const timesBySchedule = new Map<string, Date[]>();
+  for (const r of signUpTimes) {
+    const arr = timesBySchedule.get(r.scheduleId) ?? [];
+    arr.push(r.createdAt);
+    timesBySchedule.set(r.scheduleId, arr);
+  }
+  for (const r of guestTimes) {
+    const arr = timesBySchedule.get(r.scheduleId) ?? [];
+    arr.push(r.createdAt);
+    timesBySchedule.set(r.scheduleId, arr);
+  }
+
+  for (const schedule of schedulesForWindow) {
     const limit = schedule.limit ?? 15;
-    if (joinTimes.length < limit) continue;
-    const sorted = joinTimes.slice().sort((a, b) => a.getTime() - b.getTime());
+    if (limit <= 0) continue;
+    const times = timesBySchedule.get(schedule.id);
+    if (!times || times.length < limit) continue;
+    const sorted = times.slice().sort((a, b) => a.getTime() - b.getTime());
     const filledAt = sorted[limit - 1];
     const ms = filledAt.getTime() - schedule.createdAt.getTime();
-    if (ms >= 0) fillDurations.push({ scheduleId, ms });
+    if (ms >= 0) fillDurations.push({ scheduleId: schedule.id, ms });
   }
   fillDurations.sort((a, b) => a.ms - b.ms);
   const fillMedianMs =
