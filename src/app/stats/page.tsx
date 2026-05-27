@@ -48,6 +48,21 @@ export default async function StatsPage({
     ScheduleEventType.SIGNUP_SWAP,
   ] as const;
 
+  // "Most signups" is based on the current signup table, regardless of how a user was added.
+  const currentSignUps = await prisma.signUp.findMany({
+    where: {
+      ...(since ? { schedule: { date: { gte: since } } } : {}),
+    },
+    select: { userId: true, scheduleId: true },
+    distinct: ["userId", "scheduleId"],
+  });
+  const currentSignupSchedulesByUser = new Map<string, Set<string>>();
+  for (const s of currentSignUps) {
+    const set = currentSignupSchedulesByUser.get(s.userId) ?? new Set<string>();
+    set.add(s.scheduleId);
+    currentSignupSchedulesByUser.set(s.userId, set);
+  }
+
   const events = await prisma.scheduleEvent.findMany({
     where: {
       type: { in: [...eventTypes] },
@@ -79,6 +94,7 @@ export default async function StatsPage({
   const scheduleById = new Map(schedules.map((s) => [s.id, s]));
 
   const userIds = new Set<string>();
+  for (const userId of currentSignupSchedulesByUser.keys()) userIds.add(userId);
   for (const e of events) {
     if (e.actorUserId) userIds.add(e.actorUserId);
     if (e.targetUserId) userIds.add(e.targetUserId);
@@ -175,7 +191,7 @@ export default async function StatsPage({
   }
 
   const signupJoinsByUser = new Map<string, number>();
-  for (const [userId, set] of joinedSchedulesByUser) signupJoinsByUser.set(userId, set.size);
+  for (const [userId, set] of currentSignupSchedulesByUser) signupJoinsByUser.set(userId, set.size);
   const bailoutsByUser = new Map<string, number>();
   for (const [userId, set] of bailedSchedulesByUser) bailoutsByUser.set(userId, set.size);
   const clutchByUser = new Map<string, number>();
@@ -311,7 +327,7 @@ export default async function StatsPage({
       <section className="mt-8">
         <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">Leaderboards</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <StatCard title="Most signups" subtitle="Unique schedules joined">
+          <StatCard title="Most signups" subtitle="Current unique schedules signed up">
             <Leaderboard rows={topSignups} />
           </StatCard>
           <StatCard title="Most guests" subtitle="Guests attributed to member">
