@@ -103,13 +103,14 @@ export default async function StatsPage({
     },
   });
 
-  const joinTypes = new Set<ScheduleEventType>([
+  // Public leaderboards should reflect self-initiated actions, not admin adds/removals.
+  const selfJoinTypes = new Set<ScheduleEventType>([ScheduleEventType.SIGNUP_JOIN]);
+  const selfLeaveTypes = new Set<ScheduleEventType>([ScheduleEventType.SIGNUP_LEAVE]);
+
+  // Trend stats should reflect the actual list filling, including admin actions.
+  const anyJoinTypes = new Set<ScheduleEventType>([
     ScheduleEventType.SIGNUP_JOIN,
     ScheduleEventType.ADMIN_SIGNUP_JOIN,
-  ]);
-  const leaveTypes = new Set<ScheduleEventType>([
-    ScheduleEventType.SIGNUP_LEAVE,
-    ScheduleEventType.ADMIN_SIGNUP_LEAVE,
   ]);
 
   // Leaderboards
@@ -129,10 +130,11 @@ export default async function StatsPage({
     if (since && schedule.date < since) continue;
 
     const targetUserId = e.targetUserId ?? e.actorUserId;
-    const isJoin = joinTypes.has(e.type);
-    const isLeave = leaveTypes.has(e.type);
+    const isSelfJoin = selfJoinTypes.has(e.type);
+    const isSelfLeave = selfLeaveTypes.has(e.type);
+    const isAnyJoin = anyJoinTypes.has(e.type);
 
-    if (isJoin && targetUserId) {
+    if (isSelfJoin && targetUserId) {
       const joined = joinedSchedulesByUser.get(targetUserId) ?? new Set<string>();
       joined.add(e.scheduleId);
       joinedSchedulesByUser.set(targetUserId, joined);
@@ -157,13 +159,15 @@ export default async function StatsPage({
       if (weekdayIndex >= 0 && hour >= 0 && hour <= 23) {
         peakHourCounts[weekdayIndex * 24 + hour] += 1;
       }
+    }
 
+    if (isAnyJoin) {
       const arr = joinTimesBySchedule.get(e.scheduleId) ?? [];
       arr.push(e.createdAt);
       joinTimesBySchedule.set(e.scheduleId, arr);
     }
 
-    if (isLeave && targetUserId) {
+    if (isSelfLeave && targetUserId) {
       const bailed = bailedSchedulesByUser.get(targetUserId) ?? new Set<string>();
       bailed.add(e.scheduleId);
       bailedSchedulesByUser.set(targetUserId, bailed);
