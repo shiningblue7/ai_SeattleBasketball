@@ -14,126 +14,153 @@ import { createScheduleEvent } from "@/lib/scheduleEvents";
 import { ScheduleEventType } from "@prisma/client";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
+  try {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const body = (await req.json().catch(() => null)) as
-    | { scheduleId?: string; action?: "join" | "leave" }
-    | null;
+    const body = (await req.json().catch(() => null)) as
+      | { scheduleId?: string; action?: "join" | "leave" }
+      | null;
 
-  const scheduleId = body?.scheduleId;
-  const action = body?.action;
+    const scheduleId = body?.scheduleId;
+    const action = body?.action;
 
-  if (!scheduleId || !action) {
-    return NextResponse.json(
-      { error: "scheduleId and action are required" },
-      { status: 400 }
-    );
-  }
+    if (!scheduleId || !action) {
+      return NextResponse.json(
+        { error: "scheduleId and action are required" },
+        { status: 400 }
+      );
+    }
 
-  const schedule = await prisma.schedule.findUnique({
-    where: { id: scheduleId },
-    select: { id: true, active: true, title: true, date: true },
-  });
-
-  if (!schedule || !schedule.active) {
-    return NextResponse.json(
-      { error: "Schedule not found or not active" },
-      { status: 400 }
-    );
-  }
-
-  if (action === "leave") {
-    const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
-    const slot = await getSignupSlotForUser(scheduleId, userId).catch(() => null);
-    const res = await prisma.signUp.deleteMany({
-      where: { scheduleId, userId },
+    const schedule = await prisma.schedule.findUnique({
+      where: { id: scheduleId },
+      select: { id: true, active: true, title: true, date: true },
     });
 
-    if (res.count > 0) {
-      await normalizeSchedulePositions(scheduleId).catch((e) =>
-        console.error("[positions] normalizeSchedulePositions failed", e)
+    if (!schedule || !schedule.active) {
+      return NextResponse.json(
+        { error: "Schedule not found or not active" },
+        { status: 400 }
       );
+    }
 
-      await createScheduleEvent({
-        scheduleId,
-        type: ScheduleEventType.SIGNUP_LEAVE,
-        actorUserId: userId,
-        targetUserId: userId,
-        metadata: slot ? ({ slot } as const) : null,
-      }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+    if (action === "leave") {
+      const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(
+        () => []
+      );
+      const slot = await getSignupSlotForUser(scheduleId, userId).catch(() => null);
+      const res = await prisma.signUp.updateMany({
+        where: { scheduleId, userId, withdrawnAt: null },
+        data: { withdrawnAt: new Date() },
+      });
 
+      if (res.count > 0) {
+        await normalizeSchedulePositions(scheduleId).catch((e) =>
+          console.error("[positions] normalizeSchedulePositions failed", e)
+        );
+
+        await createScheduleEvent({
+          scheduleId,
+          type: ScheduleEventType.SIGNUP_LEAVE,
+          actorUserId: userId,
+          targetUserId: userId,
+          metadata: slot ? ({ slot } as const) : null,
+        }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+
+        const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
+        void notifyAdminsOfSignupChange({
+          action: "leave",
+          schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
+          actor: { id: userId, label: actorLabel },
+          target: { id: userId, label: actorLabel },
+          slot,
+        }).catch((e) =>
+          console.error("[email] notifyAdminsOfSignupChange failed", e)
+        );
+
+        void notifyWaitlistPromotionsForSchedule({
+          scheduleId,
+          beforePlayingKeys,
+        }).catch((e) =>
+          console.error("[email] notifyWaitlistPromotionsForSchedule failed", e)
+        );
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    const existing = await prisma.signUp.findUnique({
+      where: { scheduleId_userId: { scheduleId, userId } },
+      select: { id: true, withdrawnAt: true },
+    });
+
+    if (existing && !existing.withdrawnAt) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const [lastUser, lastGuest] = await prisma.$transaction([
+      prisma.signUp.findFirst({
+        where: { scheduleId, withdrawnAt: null },
+        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+        select: { position: true },
+      }),
+      prisma.guestSignUp.findFirst({
+        where: { scheduleId, removedAt: null },
+        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+        select: { position: true },
+      }),
+    ]);
+
+    const nextPosition =
+      Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
+
+    if (existing && existing.withdrawnAt) {
+      await prisma.signUp.update({
+        where: { scheduleId_userId: { scheduleId, userId } },
+        data: { withdrawnAt: null, position: nextPosition },
+      });
+    } else {
+      await prisma.signUp.create({
+        data: {
+          scheduleId,
+          userId,
+          position: nextPosition,
+        },
+      });
+    }
+
+    await createScheduleEvent({
+      scheduleId,
+      type: ScheduleEventType.SIGNUP_JOIN,
+      actorUserId: userId,
+      targetUserId: userId,
+    }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+
+    {
       const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
       void notifyAdminsOfSignupChange({
-        action: "leave",
+        action: "join",
         schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
         actor: { id: userId, label: actorLabel },
         target: { id: userId, label: actorLabel },
-        slot,
-      }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
-
-      void notifyWaitlistPromotionsForSchedule({
-        scheduleId,
-        beforePlayingKeys,
-      }).catch((e) => console.error("[email] notifyWaitlistPromotionsForSchedule failed", e));
+      }).catch((e) =>
+        console.error("[email] notifyAdminsOfSignupChange failed", e)
+      );
     }
 
     return NextResponse.json({ ok: true });
+  } catch (e) {
+    // Ensure the client gets something actionable (and not HTML) so it can display the error.
+    console.error("[api/signups] POST failed", e);
+    const message =
+      e instanceof Error ? e.message : typeof e === "string" ? e : "Unknown error";
+    return NextResponse.json(
+      { error: `Sign up failed: ${message}` },
+      { status: 500 }
+    );
   }
-
-  const existing = await prisma.signUp.findUnique({
-    where: { scheduleId_userId: { scheduleId, userId } },
-    select: { id: true },
-  });
-
-  if (existing) {
-    return NextResponse.json({ ok: true });
-  }
-
-  const [lastUser, lastGuest] = await prisma.$transaction([
-    prisma.signUp.findFirst({
-      where: { scheduleId },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    }),
-    prisma.guestSignUp.findFirst({
-      where: { scheduleId },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    }),
-  ]);
-
-  const nextPosition =
-    Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
-
-  await prisma.signUp.create({
-    data: {
-      scheduleId,
-      userId,
-      position: nextPosition,
-    },
-  });
-
-  await createScheduleEvent({
-    scheduleId,
-    type: ScheduleEventType.SIGNUP_JOIN,
-    actorUserId: userId,
-    targetUserId: userId,
-  }).catch((e) => console.error("[events] createScheduleEvent failed", e));
-
-  {
-    const actorLabel = session?.user?.name ?? session?.user?.email ?? userId;
-    void notifyAdminsOfSignupChange({
-      action: "join",
-      schedule: { id: schedule.id, title: schedule.title, date: schedule.date },
-      actor: { id: userId, label: actorLabel },
-      target: { id: userId, label: actorLabel },
-    }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
-  }
-
-  return NextResponse.json({ ok: true });
 }
