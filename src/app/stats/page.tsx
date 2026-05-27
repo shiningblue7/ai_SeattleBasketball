@@ -456,11 +456,6 @@ function Leaderboard(props: {
             <div className="truncate font-medium text-zinc-950 dark:text-zinc-50">
               {idx + 1}. {labelForUser(r.user)}
             </div>
-            {r.user?.member ? (
-              <div className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                Member
-              </div>
-            ) : null}
           </div>
           <div className="shrink-0 font-semibold text-zinc-900 dark:text-zinc-100">
             {r.value}
