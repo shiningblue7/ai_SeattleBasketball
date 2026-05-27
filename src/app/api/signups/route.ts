@@ -21,6 +21,16 @@ export async function POST(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    // Guard against stale sessions pointing to a user that doesn't exist anymore (e.g. local DB restore).
+    const userExists = await prisma.user
+      .findUnique({ where: { id: userId }, select: { id: true } })
+      .catch(() => null);
+    if (!userExists) {
+      return NextResponse.json(
+        { error: "Your session is out of date. Please sign out and sign in again." },
+        { status: 401 }
+      );
+    }
 
     const body = (await req.json().catch(() => null)) as
       | { scheduleId?: string; action?: "join" | "leave" }

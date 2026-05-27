@@ -116,6 +116,22 @@ export const authOptions: NextAuthOptions = {
           if (updated) token.roles = updated.roles ?? null;
         }
       }
+      // If the local DB was wiped/restored (common in dev), a browser may keep an old JWT
+      // pointing at a userId that no longer exists. Heal the token by re-looking up by email.
+      if (!user && token?.email && token?.id) {
+        const existing = await prisma.user
+          .findUnique({
+            where: { email: String(token.email).toLowerCase() },
+            select: { id: true, roles: true, member: true },
+          })
+          .catch(() => null);
+
+        if (existing && existing.id !== token.id) {
+          token.id = existing.id;
+          token.roles = existing.roles ?? null;
+          token.member = existing.member ?? undefined;
+        }
+      }
 
       return token;
     },
