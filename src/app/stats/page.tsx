@@ -29,9 +29,12 @@ export const dynamic = "force-dynamic";
 export default async function StatsPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  // Next can provide searchParams as either an object or a Promise (depends on version/runtime).
+  searchParams?:
+    | Record<string, string | string[] | undefined>
+    | Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const sp = searchParams ?? {};
+  const sp = await Promise.resolve(searchParams ?? {});
   const windowKey = clampWindow(Array.isArray(sp.window) ? sp.window[0] : sp.window);
   const since = windowKey === "all" ? null : new Date(Date.now() - NINETY_DAYS_MS);
 
