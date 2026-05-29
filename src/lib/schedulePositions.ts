@@ -17,12 +17,12 @@ type CombinedRow =
 export async function normalizeSchedulePositions(scheduleId: string) {
   const [users, guests] = await prisma.$transaction([
     prisma.signUp.findMany({
-      where: { scheduleId },
+      where: { scheduleId, withdrawnAt: null },
       select: { id: true, position: true, createdAt: true },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     }),
     prisma.guestSignUp.findMany({
-      where: { scheduleId },
+      where: { scheduleId, removedAt: null },
       select: { id: true, position: true, createdAt: true },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     }),

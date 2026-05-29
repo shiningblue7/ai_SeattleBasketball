@@ -62,6 +62,7 @@ type EventRow = {
     | "ADMIN_SIGNUP_LEAVE"
     | "GUEST_ADD"
     | "GUEST_REMOVE"
+    | "SIGNUP_PROMOTED"
     | "SIGNUP_SWAP"
     | "AVAILABILITY_UPDATE"
     | "ADMIN_AVAILABILITY_UPDATE";

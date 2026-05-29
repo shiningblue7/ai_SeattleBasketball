@@ -56,12 +56,14 @@ export default async function StatsPage({
     ScheduleEventType.ADMIN_SIGNUP_LEAVE,
     ScheduleEventType.GUEST_ADD,
     ScheduleEventType.GUEST_REMOVE,
+    ScheduleEventType.SIGNUP_PROMOTED,
     ScheduleEventType.SIGNUP_SWAP,
   ] as const;
 
   // "Most signups" is based on the current signup table, regardless of how a user was added.
   const currentSignUps = await prisma.signUp.findMany({
     where: {
+      withdrawnAt: null,
       ...(since ? { schedule: { date: { gte: since } } } : {}),
     },
     select: { userId: true, scheduleId: true },
@@ -118,6 +120,7 @@ export default async function StatsPage({
 
   const guestSignUps = await prisma.guestSignUp.findMany({
     where: {
+      removedAt: null,
       ...(since ? { createdAt: { gte: since } } : {}),
     },
     select: {
@@ -207,54 +210,13 @@ export default async function StatsPage({
     guestsByUser.set(g.guestOfUserId, (guestsByUser.get(g.guestOfUserId) ?? 0) + 1);
   }
 
-  // Promotions: count SIGNUP_SWAP events where item1 moved from waitlist to playing, based on positions.
-  // Note: item IDs may not be resolvable for withdrawn users; this is a "best effort" stat.
+  // Promotions (auto only): recorded explicitly when a spot opens due to a user/guest leaving.
+  // Admin reorders do not count.
   const promotionsByUser = new Map<string, number>();
-  const promotedSignUpIds: string[] = [];
   for (const e of events) {
-    if (e.type !== ScheduleEventType.SIGNUP_SWAP) continue;
-    const schedule = scheduleById.get(e.scheduleId) ?? e.schedule;
-    if (!schedule) continue;
-    if (since && schedule.date < since) continue;
-
-    const md = (e.metadata ?? null) as
-      | null
-      | {
-          item1Kind?: "user" | "guest";
-          item2Kind?: "user" | "guest";
-          item1Id?: string;
-          item2Id?: string;
-          from1?: number;
-          to1?: number;
-          from2?: number;
-          to2?: number;
-        };
-    if (!md) continue;
-
-    const limit = schedule.limit ?? 15;
-    const movedIntoPlaying =
-      typeof md.from1 === "number" &&
-      typeof md.to1 === "number" &&
-      md.from1 > limit &&
-      md.to1 <= limit;
-    if (!movedIntoPlaying) continue;
-
-    if (md.item1Kind === "user" && md.item1Id) {
-      promotedSignUpIds.push(md.item1Id);
-    }
-  }
-
-  if (promotedSignUpIds.length) {
-    const promoted = await prisma.signUp.findMany({
-      where: { id: { in: promotedSignUpIds } },
-      select: { id: true, userId: true },
-    });
-    const userIdBySignUpId = new Map(promoted.map((r) => [r.id, r.userId]));
-    for (const signUpId of promotedSignUpIds) {
-      const userId = userIdBySignUpId.get(signUpId);
-      if (!userId) continue;
-      promotionsByUser.set(userId, (promotionsByUser.get(userId) ?? 0) + 1);
-    }
+    if (e.type !== ScheduleEventType.SIGNUP_PROMOTED) continue;
+    if (!e.targetUserId) continue;
+    promotionsByUser.set(e.targetUserId, (promotionsByUser.get(e.targetUserId) ?? 0) + 1);
   }
 
   const fillDurations: Array<{ scheduleId: string; ms: number }> = [];
@@ -465,7 +427,7 @@ export default async function StatsPage({
       </section>
 
       <div className="mt-10 text-xs text-zinc-500 dark:text-zinc-400">
-        Notes: Some stats are computed from event history. Promotions are best-effort because withdrawn signups may not be resolvable.
+        Notes: Some stats are computed from event history. Promotions are counted only when waitlist users move into playing due to someone leaving.
       </div>
     </main>
   );

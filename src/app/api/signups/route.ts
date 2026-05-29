@@ -7,6 +7,7 @@ import {
   getSignupSlotForUser,
   notifyAdminsOfSignupChange,
   notifyWaitlistPromotionsForSchedule,
+  recordWaitlistPromotionsForSchedule,
 } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { normalizeSchedulePositions } from "@/lib/schedulePositions";
@@ -97,6 +98,14 @@ export async function POST(req: Request) {
           beforePlayingKeys,
         }).catch((e) =>
           console.error("[email] notifyWaitlistPromotionsForSchedule failed", e)
+        );
+
+        void recordWaitlistPromotionsForSchedule({
+          scheduleId,
+          beforePlayingKeys,
+          actorUserId: userId,
+        }).catch((e) =>
+          console.error("[events] recordWaitlistPromotionsForSchedule failed", e)
         );
       }
 
