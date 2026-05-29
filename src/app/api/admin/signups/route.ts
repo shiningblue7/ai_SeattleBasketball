@@ -8,6 +8,7 @@ import {
   getSignupSlotForUser,
   notifyAdminsOfSignupChange,
   notifyWaitlistPromotionsForSchedule,
+  recordWaitlistPromotionsForSchedule,
 } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { normalizeSchedulePositions } from "@/lib/schedulePositions";
@@ -57,8 +58,9 @@ export async function POST(req: Request) {
   if (action === "leave") {
     const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
     const slot = await getSignupSlotForUser(scheduleId, userId).catch(() => null);
-    const res = await prisma.signUp.deleteMany({
-      where: { scheduleId, userId },
+    const res = await prisma.signUp.updateMany({
+      where: { scheduleId, userId, withdrawnAt: null },
+      data: { withdrawnAt: new Date() },
     });
 
     if (res.count > 0) {
@@ -89,34 +91,55 @@ export async function POST(req: Request) {
         scheduleId,
         beforePlayingKeys,
       }).catch((e) => console.error("[email] notifyWaitlistPromotionsForSchedule failed", e));
+
+      void recordWaitlistPromotionsForSchedule({
+        scheduleId,
+        beforePlayingKeys,
+        actorUserId: actorId,
+      }).catch((e) => console.error("[events] recordWaitlistPromotionsForSchedule failed", e));
     }
     return NextResponse.json({ ok: true });
   }
 
   const existing = await prisma.signUp.findUnique({
     where: { scheduleId_userId: { scheduleId, userId } },
-    select: { id: true },
+    select: { id: true, withdrawnAt: true },
   });
 
-  if (existing) {
+  if (existing && !existing.withdrawnAt) {
     return NextResponse.json({ ok: true });
   }
 
-  const last = await prisma.signUp.findFirst({
-    where: { scheduleId },
-    orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-    select: { position: true },
-  });
+  const [lastUser, lastGuest] = await prisma.$transaction([
+    prisma.signUp.findFirst({
+      where: { scheduleId, withdrawnAt: null },
+      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+      select: { position: true },
+    }),
+    prisma.guestSignUp.findFirst({
+      where: { scheduleId, removedAt: null },
+      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+      select: { position: true },
+    }),
+  ]);
 
-  const nextPosition = (last?.position ?? 0) + 1;
+  const nextPosition =
+    Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
 
-  await prisma.signUp.create({
-    data: {
-      scheduleId,
-      userId,
-      position: nextPosition,
-    },
-  });
+  if (existing && existing.withdrawnAt) {
+    await prisma.signUp.update({
+      where: { scheduleId_userId: { scheduleId, userId } },
+      data: { withdrawnAt: null, position: nextPosition },
+    });
+  } else {
+    await prisma.signUp.create({
+      data: {
+        scheduleId,
+        userId,
+        position: nextPosition,
+      },
+    });
+  }
 
   {
     const actorId = session!.user!.id;

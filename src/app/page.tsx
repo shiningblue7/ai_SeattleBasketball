@@ -82,10 +82,12 @@ export default async function Home() {
     where: { active: true },
     include: {
       signUps: {
+        where: { withdrawnAt: null },
         include: { user: true },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       },
       guestSignUps: {
+        where: { removedAt: null },
         include: {
           guestOf: {
             select: {

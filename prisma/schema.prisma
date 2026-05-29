@@ -78,6 +78,7 @@ enum ScheduleEventType {
   ADMIN_SIGNUP_LEAVE
   GUEST_ADD
   GUEST_REMOVE
+  SIGNUP_PROMOTED
   SIGNUP_SWAP
   AVAILABILITY_UPDATE
   ADMIN_AVAILABILITY_UPDATE
@@ -123,6 +124,7 @@ model SignUp {
   userId     String
   createdAt  DateTime @default(now())
   position   Int      @default(0)
+  withdrawnAt DateTime?
 
   attendanceStatus AttendanceStatus @default(FULL)
   attendanceNote   String?
@@ -152,6 +154,7 @@ model GuestSignUp {
   addedByUserId String
   createdAt     DateTime @default(now())
   position      Int      @default(0)
+  removedAt     DateTime?
 
   schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   guestOf  User?    @relation("GuestFor", fields: [guestOfUserId], references: [id], onDelete: Cascade)

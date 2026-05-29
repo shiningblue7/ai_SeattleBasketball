@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatScheduleDateTime } from "@/lib/time";
+import { createScheduleEvent } from "@/lib/scheduleEvents";
+import { ScheduleEventType } from "@prisma/client";
 
 type WaitlistNotificationDelegate = {
   findMany: (args: unknown) => Promise<unknown>;
@@ -83,15 +85,16 @@ export async function getSignupSlotForUser(
 
   const me = await prisma.signUp.findUnique({
     where: { scheduleId_userId: { scheduleId, userId } },
-    select: { position: true, createdAt: true },
+    select: { position: true, createdAt: true, withdrawnAt: true },
   });
 
-  if (!me) return null;
+  if (!me || me.withdrawnAt) return null;
 
   const [beforeUsers, beforeGuests] = await prisma.$transaction([
     prisma.signUp.count({
       where: {
         scheduleId,
+        withdrawnAt: null,
         OR: [
           { position: { lt: me.position } },
           { position: me.position, createdAt: { lt: me.createdAt } },
@@ -101,6 +104,7 @@ export async function getSignupSlotForUser(
     prisma.guestSignUp.count({
       where: {
         scheduleId,
+        removedAt: null,
         OR: [
           { position: { lt: me.position } },
           { position: me.position, createdAt: { lt: me.createdAt } },
@@ -183,7 +187,7 @@ async function getPlayingSet(scheduleId: string): Promise<{
   const limit = schedule.limit;
   const [signUps, guestSignUps] = await prisma.$transaction([
     prisma.signUp.findMany({
-      where: { scheduleId },
+      where: { scheduleId, withdrawnAt: null },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       take: limit,
       select: {
@@ -194,7 +198,7 @@ async function getPlayingSet(scheduleId: string): Promise<{
       },
     }),
     prisma.guestSignUp.findMany({
-      where: { scheduleId },
+      where: { scheduleId, removedAt: null },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       take: limit,
       select: {
@@ -317,6 +321,54 @@ export async function notifyWaitlistPromotionsForSchedule({
 
         await sendWithResend({ to: [u.email as string], subject, text });
       })
+  );
+}
+
+export async function recordWaitlistPromotionsForSchedule({
+  scheduleId,
+  beforePlayingKeys,
+  actorUserId,
+}: {
+  scheduleId: string;
+  beforePlayingKeys: string[];
+  actorUserId?: string | null;
+}) {
+  const after = await getPlayingSet(scheduleId);
+  if (!after.schedule) return;
+
+  const beforeKeySet = new Set(beforePlayingKeys);
+  const promoted = after.playing.filter((p) => !beforeKeySet.has(p.key));
+
+  const promotedUserIds = promoted
+    .filter((p) => p.kind === "user")
+    .map((p) => p.ownerUserId)
+    .filter((x): x is string => Boolean(x));
+
+  if (promotedUserIds.length === 0) return;
+
+  const signUps = await prisma.signUp.findMany({
+    where: {
+      scheduleId,
+      withdrawnAt: null,
+      userId: { in: Array.from(new Set(promotedUserIds)) },
+    },
+    select: { id: true, userId: true },
+  });
+
+  const signUpIdByUserId = new Map(signUps.map((s) => [s.userId, s.id]));
+
+  await Promise.all(
+    promotedUserIds.map(async (userId) => {
+      const signUpId = signUpIdByUserId.get(userId) ?? null;
+      // Stats should count only promotions caused by bailouts (leave/remove) and should not include guests.
+      await createScheduleEvent({
+        scheduleId,
+        type: ScheduleEventType.SIGNUP_PROMOTED,
+        actorUserId: actorUserId ?? null,
+        targetUserId: userId,
+        signUpId,
+      }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+    })
   );
 }
 

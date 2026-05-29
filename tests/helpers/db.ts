@@ -119,9 +119,10 @@ export async function seedGuestSignup(input: SeedGuestSignupInput) {
 }
 
 export async function getSignupForUser(scheduleId: string, userId: string) {
-  return prisma.signUp.findUnique({
+  const row = await prisma.signUp.findUnique({
     where: { scheduleId_userId: { scheduleId, userId } },
   });
+  return row?.withdrawnAt ? null : row;
 }
 
 export async function getWaitlistNotification({ scheduleId, userId }: WaitlistLookup) {
@@ -146,11 +147,17 @@ export async function getUserByEmail({ email }: UserLookup) {
 }
 
 export async function listSignupsForSchedule({ scheduleId }: SignupsLookup) {
-  return prisma.signUp.findMany({ where: { scheduleId }, orderBy: { position: "asc" } });
+  return prisma.signUp.findMany({
+    where: { scheduleId, withdrawnAt: null },
+    orderBy: { position: "asc" },
+  });
 }
 
 export async function listGuestSignupsForSchedule({ scheduleId }: SignupsLookup) {
-  return prisma.guestSignUp.findMany({ where: { scheduleId }, orderBy: { position: "asc" } });
+  return prisma.guestSignUp.findMany({
+    where: { scheduleId, removedAt: null },
+    orderBy: { position: "asc" },
+  });
 }
 
 export async function createPasswordResetToken({

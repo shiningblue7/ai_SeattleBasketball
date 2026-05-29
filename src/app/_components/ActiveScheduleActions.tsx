@@ -27,10 +27,17 @@ export function ActiveScheduleActions({
       });
 
       if (!resp.ok) {
+        // Try to show something actionable instead of a generic "Request failed".
         const data = (await resp.json().catch(() => null)) as
           | { error?: string }
           | null;
-        setError(data?.error ?? "Request failed");
+        if (data?.error) {
+          setError(data.error);
+          return;
+        }
+
+        const text = await resp.text().catch(() => "");
+        setError(text ? text.slice(0, 300) : "Request failed");
         return;
       }
 

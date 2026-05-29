@@ -4,7 +4,11 @@ import type { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
-import { getPlayingKeysForSchedule, notifyWaitlistPromotionsForSchedule } from "@/lib/email";
+import {
+  getPlayingKeysForSchedule,
+  notifyWaitlistPromotionsForSchedule,
+  recordWaitlistPromotionsForSchedule,
+} from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { normalizeSchedulePositions } from "@/lib/schedulePositions";
 import { createScheduleEvent } from "@/lib/scheduleEvents";
@@ -62,12 +66,12 @@ export async function POST(req: Request) {
 
   const [lastUser, lastGuest] = await prisma.$transaction([
     prisma.signUp.findFirst({
-      where: { scheduleId },
+      where: { scheduleId, withdrawnAt: null },
       orderBy: [{ position: "desc" }, { createdAt: "desc" }],
       select: { position: true },
     }),
     prisma.guestSignUp.findFirst({
-      where: { scheduleId },
+      where: { scheduleId, removedAt: null },
       orderBy: [{ position: "desc" }, { createdAt: "desc" }],
       select: { position: true },
     }),
@@ -136,7 +140,14 @@ export async function DELETE(req: Request) {
 
   const beforePlayingKeys = await getPlayingKeysForSchedule(guest.scheduleId).catch(() => []);
 
-  await prisma.guestSignUp.delete({ where: { id: guestSignUpId } });
+  const res = await prisma.guestSignUp.updateMany({
+    where: { id: guestSignUpId, removedAt: null },
+    data: { removedAt: new Date() },
+  });
+
+  if (res.count === 0) {
+    return NextResponse.json({ ok: true });
+  }
 
   await createScheduleEvent({
     scheduleId: guest.scheduleId,
@@ -154,6 +165,12 @@ export async function DELETE(req: Request) {
     scheduleId: guest.scheduleId,
     beforePlayingKeys,
   }).catch((e) => console.error("[email] notifyWaitlistPromotionsForSchedule failed", e));
+
+  await recordWaitlistPromotionsForSchedule({
+    scheduleId: guest.scheduleId,
+    beforePlayingKeys,
+    actorUserId: userId,
+  }).catch((e) => console.error("[events] recordWaitlistPromotionsForSchedule failed", e));
 
   return NextResponse.json({ ok: true });
 }

@@ -45,15 +45,17 @@ export async function POST(req: Request) {
   const lookupItem = async (id: string) => {
     const signUp = await prisma.signUp.findUnique({
       where: { id },
-      select: { id: true, scheduleId: true, position: true },
+      select: { id: true, scheduleId: true, position: true, withdrawnAt: true },
     });
-    if (signUp) return { kind: "user" as const, ...signUp };
+    if (signUp && !signUp.withdrawnAt)
+      return { kind: "user" as const, id: signUp.id, scheduleId: signUp.scheduleId, position: signUp.position };
 
     const guest = await prisma.guestSignUp.findUnique({
       where: { id },
-      select: { id: true, scheduleId: true, position: true },
+      select: { id: true, scheduleId: true, position: true, removedAt: true },
     });
-    if (guest) return { kind: "guest" as const, ...guest };
+    if (guest && !guest.removedAt)
+      return { kind: "guest" as const, id: guest.id, scheduleId: guest.scheduleId, position: guest.position };
 
     return null;
   };

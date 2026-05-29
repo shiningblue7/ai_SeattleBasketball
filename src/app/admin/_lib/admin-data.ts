@@ -75,7 +75,7 @@ export async function getAdminData(opts?: { signupsScheduleId?: string }) {
 
   const signUps = signupsSchedule
     ? await prisma.signUp.findMany({
-        where: { scheduleId: signupsSchedule.id },
+        where: { scheduleId: signupsSchedule.id, withdrawnAt: null },
         include: { user: { select: { email: true, name: true, member: true } } },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       })
@@ -83,7 +83,7 @@ export async function getAdminData(opts?: { signupsScheduleId?: string }) {
 
   const guestSignUps = signupsSchedule
     ? await prisma.guestSignUp.findMany({
-        where: { scheduleId: signupsSchedule.id },
+        where: { scheduleId: signupsSchedule.id, removedAt: null },
         include: { guestOf: { select: { email: true, name: true } } },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       })
