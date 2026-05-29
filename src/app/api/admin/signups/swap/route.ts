@@ -5,6 +5,7 @@ import { authOptions } from "@/auth";
 import { requireAdmin } from "@/lib/authz";
 import { getPlayingKeysForSchedule, notifyWaitlistPromotionsForSchedule } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { normalizeSchedulePositions } from "@/lib/schedulePositions";
 import { createScheduleEvent } from "@/lib/scheduleEvents";
 import { ScheduleEventType } from "@prisma/client";
 
@@ -41,6 +42,11 @@ export async function POST(req: Request) {
   if (id1 === id2) {
     return NextResponse.json({ ok: true });
   }
+
+  // Defensive: normalize first so a swap always changes ordering even if positions have drifted/duplicated.
+  await normalizeSchedulePositions(scheduleId).catch((e) =>
+    console.error("[positions] normalizeSchedulePositions failed", e)
+  );
 
   const lookupItem = async (id: string) => {
     const signUp = await prisma.signUp.findUnique({
