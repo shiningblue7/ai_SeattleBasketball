@@ -494,11 +494,25 @@ export default async function Home() {
               </div>
 
               <div className="sm:col-span-2">
-                <details className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                <details className="group rounded-2xl border border-zinc-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-zinc-950 outline-none dark:text-zinc-50">
                     <span className="min-w-0 truncate">Recent activity</span>
-                    <span className="shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                      {activity.length ? `${activity.length} item${activity.length === 1 ? "" : "s"}` : "none"}
+                    <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold text-zinc-700 dark:border-slate-700 dark:bg-slate-900/30 dark:text-zinc-200">
+                      <span>
+                        {activity.length ? `${activity.length} item${activity.length === 1 ? "" : "s"}` : "none"}
+                      </span>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="h-4 w-4 transition-transform group-open:rotate-180"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
                     </span>
                   </summary>
                   {activity.length ? (
