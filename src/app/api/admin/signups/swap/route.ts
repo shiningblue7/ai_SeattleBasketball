@@ -10,38 +10,39 @@ import { ScheduleEventType } from "@prisma/client";
 import { withScheduleQueueTx } from "@/lib/queueTx";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const gate = requireAdmin(session);
-  if (!gate.ok) {
-    return NextResponse.json({ error: gate.error }, { status: gate.status });
-  }
+  try {
+    const session = await getServerSession(authOptions);
+    const gate = requireAdmin(session);
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.error }, { status: gate.status });
+    }
 
-  const body = (await req.json().catch(() => null)) as
-    | {
-        scheduleId?: string;
-        id1?: string;
-        id2?: string;
-        signUpId1?: string;
-        signUpId2?: string;
-        guestSignUpId1?: string;
-        guestSignUpId2?: string;
-      }
-    | null;
+    const body = (await req.json().catch(() => null)) as
+      | {
+          scheduleId?: string;
+          id1?: string;
+          id2?: string;
+          signUpId1?: string;
+          signUpId2?: string;
+          guestSignUpId1?: string;
+          guestSignUpId2?: string;
+        }
+      | null;
 
-  const scheduleId = body?.scheduleId;
-  const id1 = body?.id1 ?? body?.signUpId1 ?? body?.guestSignUpId1;
-  const id2 = body?.id2 ?? body?.signUpId2 ?? body?.guestSignUpId2;
+    const scheduleId = body?.scheduleId;
+    const id1 = body?.id1 ?? body?.signUpId1 ?? body?.guestSignUpId1;
+    const id2 = body?.id2 ?? body?.signUpId2 ?? body?.guestSignUpId2;
 
-  if (!scheduleId || !id1 || !id2) {
-    return NextResponse.json(
-      { error: "scheduleId, id1, id2 are required" },
-      { status: 400 }
-    );
-  }
+    if (!scheduleId || !id1 || !id2) {
+      return NextResponse.json(
+        { error: "scheduleId, id1, id2 are required" },
+        { status: 400 }
+      );
+    }
 
-  if (id1 === id2) {
-    return NextResponse.json({ ok: true });
-  }
+    if (id1 === id2) {
+      return NextResponse.json({ ok: true });
+    }
 
   const lookupItem = async (id: string) => {
     const signUp = await prisma.signUp.findUnique({
@@ -61,71 +62,96 @@ export async function POST(req: Request) {
     return null;
   };
 
-  const [a, b] = await Promise.all([lookupItem(id1), lookupItem(id2)]);
+    const [a, b] = await Promise.all([lookupItem(id1), lookupItem(id2)]);
 
-  if (!a || !b) {
-    return NextResponse.json({ error: "Signup not found" }, { status: 404 });
-  }
-
-  if (a.scheduleId !== scheduleId || b.scheduleId !== scheduleId) {
-    return NextResponse.json(
-      { error: "Signups do not belong to this schedule" },
-      { status: 400 }
-    );
-  }
-
-  const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
-
-  await withScheduleQueueTx(scheduleId, async (tx) => {
-    const [qa, qb] = await Promise.all([
-      tx.queueEntry.findFirst({
-        where: {
-          scheduleId,
-          ...(a.kind === "guest" ? { guestSignUpId: a.id } : { signUpId: a.id }),
-        },
-        select: { id: true, position: true },
-      }),
-      tx.queueEntry.findFirst({
-        where: {
-          scheduleId,
-          ...(b.kind === "guest" ? { guestSignUpId: b.id } : { signUpId: b.id }),
-        },
-        select: { id: true, position: true },
-      }),
-    ]);
-
-    if (!qa || !qb) {
-      throw new Error("Queue entry not found");
+    if (!a || !b) {
+      return NextResponse.json({ error: "Signup not found" }, { status: 404 });
     }
 
-    // Swap without violating the unique(scheduleId, position) constraint by using a temporary position.
-    const tmp = -1;
-    await tx.queueEntry.update({ where: { id: qa.id }, data: { position: tmp } });
-    await tx.queueEntry.update({ where: { id: qb.id }, data: { position: qa.position } });
-    await tx.queueEntry.update({ where: { id: qa.id }, data: { position: qb.position } });
-  });
+    if (a.scheduleId !== scheduleId || b.scheduleId !== scheduleId) {
+      return NextResponse.json(
+        { error: "Signups do not belong to this schedule" },
+        { status: 400 }
+      );
+    }
 
-  await createScheduleEvent({
-    scheduleId,
-    type: ScheduleEventType.SIGNUP_SWAP,
-    actorUserId: session!.user!.id,
-    ...(a.kind === "guest" ? { guestSignUpId: a.id } : { signUpId: a.id }),
-    metadata: {
-      item1Kind: a.kind,
-      item2Kind: b.kind,
-      item1Id: a.id,
-      item2Id: b.id,
-      from1: a.position,
-      to1: b.position,
-      from2: b.position,
-      to2: a.position,
-    },
-  }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+    const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(
+      () => []
+    );
 
-  await notifyWaitlistPromotionsForSchedule({
-    scheduleId,
-    beforePlayingKeys,
-  }).catch((e) => console.error("[email] notifyWaitlistPromotionsForSchedule failed", e));
+    await withScheduleQueueTx(scheduleId, async (tx) => {
+      const [qa, qb] = await Promise.all([
+        tx.queueEntry.findFirst({
+          where: {
+            scheduleId,
+            ...(a.kind === "guest"
+              ? { guestSignUpId: a.id }
+              : { signUpId: a.id }),
+          },
+          select: { id: true, position: true },
+        }),
+        tx.queueEntry.findFirst({
+          where: {
+            scheduleId,
+            ...(b.kind === "guest"
+              ? { guestSignUpId: b.id }
+              : { signUpId: b.id }),
+          },
+          select: { id: true, position: true },
+        }),
+      ]);
 
-  return NextResponse.json({ ok: true });
+      if (!qa || !qb) {
+        throw new Error(
+          `Queue entry not found (a=${a.kind}:${a.id} b=${b.kind}:${b.id})`
+        );
+      }
+
+      // Swap without violating the unique(scheduleId, position) constraint by using a temporary position.
+      const tmp = -1;
+      await tx.queueEntry.update({ where: { id: qa.id }, data: { position: tmp } });
+      await tx.queueEntry.update({
+        where: { id: qb.id },
+        data: { position: qa.position },
+      });
+      await tx.queueEntry.update({
+        where: { id: qa.id },
+        data: { position: qb.position },
+      });
+    });
+
+    await createScheduleEvent({
+      scheduleId,
+      type: ScheduleEventType.SIGNUP_SWAP,
+      actorUserId: session!.user!.id,
+      ...(a.kind === "guest" ? { guestSignUpId: a.id } : { signUpId: a.id }),
+      metadata: {
+        item1Kind: a.kind,
+        item2Kind: b.kind,
+        item1Id: a.id,
+        item2Id: b.id,
+        from1: a.position,
+        to1: b.position,
+        from2: b.position,
+        to2: a.position,
+      },
+    }).catch((e) => console.error("[events] createScheduleEvent failed", e));
+
+    await notifyWaitlistPromotionsForSchedule({
+      scheduleId,
+      beforePlayingKeys,
+    }).catch((e) =>
+      console.error("[email] notifyWaitlistPromotionsForSchedule failed", e)
+    );
+
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[api/admin/signups/swap] POST failed", e);
+    const message =
+      e instanceof Error ? e.message : typeof e === "string" ? e : "Unknown error";
+    return NextResponse.json(
+      { error: `Reorder failed: ${message}` },
+      { status: 500 }
+    );
+  }
 }

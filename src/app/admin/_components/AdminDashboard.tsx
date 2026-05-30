@@ -451,7 +451,12 @@ export function AdminDashboard({
         const data = (await resp.json().catch(() => null)) as
           | { error?: string }
           | null;
-        setError(data?.error ?? "Failed to reorder");
+        if (data?.error) {
+          setError(data.error);
+          return;
+        }
+        const text = await resp.text().catch(() => "");
+        setError(text ? text.slice(0, 300) : "Failed to reorder");
         return;
       }
 
