@@ -65,23 +65,14 @@ export async function POST(req: Request) {
   }
 
   const guest = await withScheduleQueueTx(scheduleId, async (tx) => {
-    const [lastUser, lastGuest] = await Promise.all([
-      tx.signUp.findFirst({
-        where: { scheduleId, withdrawnAt: null },
-        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-        select: { position: true },
-      }),
-      tx.guestSignUp.findFirst({
-        where: { scheduleId, removedAt: null },
-        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-        select: { position: true },
-      }),
-    ]);
+    const last = await tx.queueEntry.findFirst({
+      where: { scheduleId },
+      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+      select: { position: true },
+    });
+    const nextPosition = (last?.position ?? 0) + 1;
 
-    const nextPosition =
-      Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
-
-    return tx.guestSignUp.create({
+    const created = await tx.guestSignUp.create({
       data: {
         scheduleId,
         guestName,
@@ -91,6 +82,18 @@ export async function POST(req: Request) {
       },
       select: { id: true },
     } as Prisma.GuestSignUpCreateArgs);
+
+    await tx.queueEntry.create({
+      data: {
+        scheduleId,
+        position: nextPosition,
+        kind: "GUEST",
+        guestSignUpId: created.id,
+      },
+      select: { id: true },
+    });
+
+    return created;
   });
 
   await createScheduleEvent({
@@ -142,12 +145,14 @@ export async function DELETE(req: Request) {
 
   const beforePlayingKeys = await getPlayingKeysForSchedule(guest.scheduleId).catch(() => []);
 
-  const res = await withScheduleQueueTx(guest.scheduleId, (tx) =>
-    tx.guestSignUp.updateMany({
+  const res = await withScheduleQueueTx(guest.scheduleId, async (tx) => {
+    const updateRes = await tx.guestSignUp.updateMany({
       where: { id: guestSignUpId, removedAt: null },
       data: { removedAt: new Date() },
-    })
-  );
+    });
+    await tx.queueEntry.deleteMany({ where: { scheduleId: guest.scheduleId, guestSignUpId } });
+    return updateRes;
+  });
 
   if (res.count === 0) {
     return NextResponse.json({ ok: true });

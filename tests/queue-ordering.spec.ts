@@ -61,15 +61,15 @@ test.describe("queue ordering invariants", () => {
       limit: 1,
     });
 
-    // Start from a deliberately messy DB state (duplicates/gaps).
-    await seedSignup({ scheduleId: schedule.id, userId: u1.id, position: 10 });
-    await seedSignup({ scheduleId: schedule.id, userId: u2.id, position: 10 });
+    // Start from a valid DB state, then intentionally make it messy (duplicates/gaps) via helper.
+    await seedSignup({ scheduleId: schedule.id, userId: u1.id, position: 1 });
+    await seedSignup({ scheduleId: schedule.id, userId: u2.id, position: 2 });
     await seedGuestSignup({
       scheduleId: schedule.id,
       guestName: "Guest1",
       guestOfUserId: u1.id,
       addedByUserId: u1.id,
-      position: 11,
+      position: 3,
     });
 
     await forceMessyPositionsForSchedule({ scheduleId: schedule.id });

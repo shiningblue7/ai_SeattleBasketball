@@ -18,56 +18,61 @@ type CombinedRow =
     };
 
 export async function normalizeSchedulePositions(scheduleId: string, db: PrismaLike = prisma) {
-  const [users, guests] = await Promise.all([
-    db.signUp.findMany({
-      where: { scheduleId, withdrawnAt: null },
-      select: { id: true, position: true, createdAt: true },
-      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-    }),
-    db.guestSignUp.findMany({
-      where: { scheduleId, removedAt: null },
-      select: { id: true, position: true, createdAt: true },
-      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-    }),
-  ]);
+  // Phase B (option A): QueueEntry is the source of truth for ordering.
+  // We normalize queue entries first, then mirror positions back to SignUp/GuestSignUp for compatibility.
 
-  const combined: CombinedRow[] = [
-    ...users.map((s) => ({
-      kind: "user" as const,
-      id: s.id,
-      position: s.position,
-      createdAt: s.createdAt,
-    })),
-    ...guests.map((g) => ({
-      kind: "guest" as const,
-      id: g.id,
-      position: g.position,
-      createdAt: g.createdAt,
-    })),
-  ].sort((a, b) => {
-    if (a.position !== b.position) return a.position - b.position;
-    return a.createdAt.getTime() - b.createdAt.getTime();
+  const entries = await db.queueEntry.findMany({
+    where: { scheduleId },
+    select: {
+      id: true,
+      position: true,
+      createdAt: true,
+      signUpId: true,
+      guestSignUpId: true,
+    },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   });
 
-  const updates = combined
-    .map((row, idx) => ({ row, desired: idx + 1 }))
-    .filter(({ row, desired }) => row.position !== desired)
-    .map(({ row, desired }) => {
-      if (row.kind === "user") {
-        return db.signUp.update({
-          where: { id: row.id },
-          data: { position: desired },
-          select: { id: true },
-        });
-      }
-      return db.guestSignUp.update({
-        where: { id: row.id },
-        data: { position: desired },
-        select: { id: true },
-      });
-    });
+  if (entries.length === 0) return;
 
-  if (updates.length === 0) return;
+  const entryPosUpdates = entries
+    .map((e, idx) => ({ id: e.id, from: e.position, to: idx + 1 }))
+    .filter((x) => x.from !== x.to)
+    .map((x) =>
+      db.queueEntry.update({ where: { id: x.id }, data: { position: x.to }, select: { id: true } })
+    );
 
-  await Promise.all(updates);
+  if (entryPosUpdates.length) {
+    await Promise.all(entryPosUpdates);
+  }
+
+  // Re-fetch after normalization so the mirrored positions match the final order.
+  const normalized = entryPosUpdates.length
+    ? await db.queueEntry.findMany({
+        where: { scheduleId },
+        select: { position: true, signUpId: true, guestSignUpId: true },
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      })
+    : entries.map((e, idx) => ({ position: idx + 1, signUpId: e.signUpId, guestSignUpId: e.guestSignUpId }));
+
+  const mirrorOps: Array<Prisma.PrismaPromise<unknown>> = [];
+  for (const e of normalized) {
+    if (e.signUpId) {
+      mirrorOps.push(
+        db.signUp.updateMany({
+          where: { id: e.signUpId, position: { not: e.position } },
+          data: { position: e.position },
+        })
+      );
+    } else if (e.guestSignUpId) {
+      mirrorOps.push(
+        db.guestSignUp.updateMany({
+          where: { id: e.guestSignUpId, position: { not: e.position } },
+          data: { position: e.position },
+        })
+      );
+    }
+  }
+
+  if (mirrorOps.length) await Promise.all(mirrorOps);
 }

@@ -66,9 +66,37 @@ model Schedule {
 
   guestSignUps GuestSignUp[]
 
+  queueEntries QueueEntry[]
+
   waitlistNotifications WaitlistNotification[]
 
   events ScheduleEvent[]
+}
+
+enum QueueEntryKind {
+  USER
+  GUEST
+}
+
+model QueueEntry {
+  id         String         @id @default(cuid())
+  scheduleId String
+  position   Int
+  kind       QueueEntryKind
+  createdAt  DateTime       @default(now())
+
+  // References to the source record that holds the "payload" details.
+  // Exactly one of these should be non-null.
+  signUpId      String? @unique
+  guestSignUpId String? @unique
+
+  schedule    Schedule     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  signUp      SignUp?      @relation(fields: [signUpId], references: [id], onDelete: Cascade)
+  guestSignUp GuestSignUp? @relation(fields: [guestSignUpId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, position])
+  @@index([scheduleId, position])
+  @@index([scheduleId, kind])
 }
 
 enum ScheduleEventType {
@@ -90,8 +118,8 @@ model ScheduleEvent {
   scheduleId String
   type       ScheduleEventType
 
-  actorUserId  String?
-  targetUserId String?
+  actorUserId   String?
+  targetUserId  String?
   guestSignUpId String?
   signUpId      String?
 
@@ -119,11 +147,11 @@ model WaitlistNotification {
 }
 
 model SignUp {
-  id         String   @id @default(cuid())
-  scheduleId String
-  userId     String
-  createdAt  DateTime @default(now())
-  position   Int      @default(0)
+  id          String    @id @default(cuid())
+  scheduleId  String
+  userId      String
+  createdAt   DateTime  @default(now())
+  position    Int       @default(0)
   withdrawnAt DateTime?
 
   attendanceStatus AttendanceStatus @default(FULL)
@@ -132,8 +160,9 @@ model SignUp {
   arriveAt String?
   leaveAt  String?
 
-  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedule   Schedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  queueEntry QueueEntry?
 
   @@unique([scheduleId, userId])
   @@index([scheduleId, position])
@@ -147,18 +176,19 @@ enum AttendanceStatus {
 }
 
 model GuestSignUp {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   scheduleId    String
   guestName     String
   guestOfUserId String?
   addedByUserId String
-  createdAt     DateTime @default(now())
-  position      Int      @default(0)
+  createdAt     DateTime  @default(now())
+  position      Int       @default(0)
   removedAt     DateTime?
 
-  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  guestOf  User?    @relation("GuestFor", fields: [guestOfUserId], references: [id], onDelete: Cascade)
-  addedBy  User     @relation("GuestAddedBy", fields: [addedByUserId], references: [id], onDelete: Cascade)
+  schedule   Schedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  guestOf    User?       @relation("GuestFor", fields: [guestOfUserId], references: [id], onDelete: Cascade)
+  addedBy    User        @relation("GuestAddedBy", fields: [addedByUserId], references: [id], onDelete: Cascade)
+  queueEntry QueueEntry?
 
   @@index([scheduleId, position])
   @@index([scheduleId, guestOfUserId])
