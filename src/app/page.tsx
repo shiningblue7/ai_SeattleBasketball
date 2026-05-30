@@ -11,6 +11,7 @@ import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatScheduleDateTime, formatScheduleTimeHHMM } from "@/lib/time";
+import { ScheduleEventType } from "@prisma/client";
 
 type ActiveSchedule = Prisma.ScheduleGetPayload<{
   include: {
@@ -73,6 +74,15 @@ type GuestUiRow = {
   guestOfLabel: string;
   addedByUserId: string;
   addedByLabel: string;
+};
+
+type ActivityRow = {
+  id: string;
+  createdAt: Date;
+  type: ScheduleEventType;
+  actorName: string | null;
+  targetName: string | null;
+  metadata: unknown;
 };
 
 export default async function Home() {
@@ -304,6 +314,91 @@ export default async function Home() {
     };
   });
 
+  const activity: ActivityRow[] =
+    activeSchedule?.id
+      ? await prisma.scheduleEvent.findMany({
+          where: {
+            scheduleId: activeSchedule.id,
+            type: {
+              in: [
+                ScheduleEventType.SIGNUP_JOIN,
+                ScheduleEventType.SIGNUP_LEAVE,
+                ScheduleEventType.ADMIN_SIGNUP_JOIN,
+                ScheduleEventType.ADMIN_SIGNUP_LEAVE,
+                ScheduleEventType.GUEST_ADD,
+                ScheduleEventType.GUEST_REMOVE,
+                ScheduleEventType.SIGNUP_PROMOTED,
+              ],
+            },
+          },
+          select: {
+            id: true,
+            createdAt: true,
+            type: true,
+            metadata: true,
+            actor: { select: { name: true } },
+            target: { select: { name: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        }).then((rows) =>
+          rows.map((r) => ({
+            id: r.id,
+            createdAt: r.createdAt,
+            type: r.type,
+            actorName: r.actor?.name ?? null,
+            targetName: r.target?.name ?? null,
+            metadata: r.metadata,
+          }))
+        )
+      : [];
+
+  const formatActivityTime = (d: Date) => {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(d);
+  };
+
+  const label = (name: string | null) => name ?? "Someone";
+
+  const activityLine = (row: ActivityRow) => {
+    const md = (row.metadata ?? null) as null | { guestName?: unknown };
+    const guestName = typeof md?.guestName === "string" ? md.guestName : null;
+
+    if (row.type === ScheduleEventType.SIGNUP_JOIN) {
+      const who = label(row.targetName ?? row.actorName);
+      return `${who} signed up`;
+    }
+    if (row.type === ScheduleEventType.SIGNUP_LEAVE) {
+      const who = label(row.targetName ?? row.actorName);
+      return `${who} withdrew`;
+    }
+    if (row.type === ScheduleEventType.ADMIN_SIGNUP_JOIN) {
+      const who = label(row.targetName);
+      return `Admin added ${who}`;
+    }
+    if (row.type === ScheduleEventType.ADMIN_SIGNUP_LEAVE) {
+      const who = label(row.targetName);
+      return `Admin removed ${who}`;
+    }
+    if (row.type === ScheduleEventType.GUEST_ADD) {
+      if (guestName) return `Guest added: ${guestName}`;
+      return "Guest added";
+    }
+    if (row.type === ScheduleEventType.GUEST_REMOVE) {
+      return "Guest removed";
+    }
+    if (row.type === ScheduleEventType.SIGNUP_PROMOTED) {
+      const who = label(row.targetName);
+      return `${who} promoted to playing`;
+    }
+    return "Activity";
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-slate-900">
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
@@ -396,6 +491,35 @@ export default async function Home() {
                     No waitlist yet.
                   </div>
                 )}
+              </div>
+
+              <div className="sm:col-span-2">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                  <div className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
+                    Recent activity
+                  </div>
+                  {activity.length ? (
+                    <ol className="mt-3 space-y-2 text-sm">
+                      {activity.map((row) => (
+                        <li
+                          key={row.id}
+                          className="flex items-start justify-between gap-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/30"
+                        >
+                          <div className="min-w-0 text-zinc-900 dark:text-zinc-100">
+                            {activityLine(row)}
+                          </div>
+                          <div className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
+                            {formatActivityTime(row.createdAt)}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                      No recent activity yet.
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="sm:col-span-2">
