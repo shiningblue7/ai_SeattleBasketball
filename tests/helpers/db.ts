@@ -65,6 +65,7 @@ export async function resetDb() {
   await prisma.$transaction([
     prisma.scheduleEvent.deleteMany(),
     prisma.waitlistNotification.deleteMany(),
+    prisma.queueEntry.deleteMany(),
     prisma.guestSignUp.deleteMany(),
     prisma.signUp.deleteMany(),
     prisma.schedule.deleteMany(),
@@ -100,7 +101,7 @@ export async function seedSchedule(input: SeedScheduleInput) {
 }
 
 export async function seedSignup(input: SeedSignupInput) {
-  return prisma.signUp.create({
+  const signUp = await prisma.signUp.create({
     data: {
       scheduleId: input.scheduleId,
       userId: input.userId,
@@ -108,10 +109,19 @@ export async function seedSignup(input: SeedSignupInput) {
       attendanceStatus: input.attendanceStatus ?? "FULL",
     },
   });
+  await prisma.queueEntry.create({
+    data: {
+      scheduleId: input.scheduleId,
+      position: input.position,
+      kind: "USER",
+      signUpId: signUp.id,
+    },
+  });
+  return signUp;
 }
 
 export async function seedGuestSignup(input: SeedGuestSignupInput) {
-  return prisma.guestSignUp.create({
+  const guest = await prisma.guestSignUp.create({
     data: {
       scheduleId: input.scheduleId,
       guestName: input.guestName,
@@ -120,6 +130,15 @@ export async function seedGuestSignup(input: SeedGuestSignupInput) {
       position: input.position,
     },
   });
+  await prisma.queueEntry.create({
+    data: {
+      scheduleId: input.scheduleId,
+      position: input.position,
+      kind: "GUEST",
+      guestSignUpId: guest.id,
+    },
+  });
+  return guest;
 }
 
 export async function getSignupForUser(scheduleId: string, userId: string) {
@@ -165,67 +184,54 @@ export async function listGuestSignupsForSchedule({ scheduleId }: SignupsLookup)
 }
 
 export async function listCombinedQueueForSchedule({ scheduleId }: SignupsLookup) {
-  const [users, guests] = await Promise.all([
-    prisma.signUp.findMany({
-      where: { scheduleId, withdrawnAt: null },
-      select: { id: true, userId: true, position: true, createdAt: true },
-    }),
-    prisma.guestSignUp.findMany({
-      where: { scheduleId, removedAt: null },
-      select: { id: true, position: true, createdAt: true },
-    }),
-  ]);
-
-  const combined: CombinedQueueRow[] = [
-    ...users.map((s) => ({
-      kind: "user" as const,
-      id: s.id,
-      userId: s.userId,
-      position: s.position,
-      createdAt: s.createdAt,
-    })),
-    ...guests.map((g) => ({
-      kind: "guest" as const,
-      id: g.id,
-      position: g.position,
-      createdAt: g.createdAt,
-    })),
-  ].sort((a, b) => {
-    if (a.position !== b.position) return a.position - b.position;
-    return a.createdAt.getTime() - b.createdAt.getTime();
+  const entries = await prisma.queueEntry.findMany({
+    where: { scheduleId },
+    select: {
+      kind: true,
+      position: true,
+      createdAt: true,
+      signUpId: true,
+      guestSignUpId: true,
+      signUp: { select: { id: true, userId: true } },
+      guestSignUp: { select: { id: true } },
+    },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   });
 
-  return combined;
+  return entries.map((e) => {
+    if (e.kind === "USER" && e.signUp) {
+      return {
+        kind: "user",
+        id: e.signUp.id,
+        userId: e.signUp.userId,
+        position: e.position,
+        createdAt: e.createdAt,
+      } as const;
+    }
+    return {
+      kind: "guest",
+      id: e.guestSignUp?.id ?? e.guestSignUpId ?? e.signUpId ?? e.signUp?.id ?? "unknown",
+      position: e.position,
+      createdAt: e.createdAt,
+    } as const;
+  }) as CombinedQueueRow[];
 }
 
 export async function forceMessyPositionsForSchedule({ scheduleId }: SignupsLookup) {
-  // Intentionally create duplicates/gaps to validate that server-side normalization fixes it.
-  const users = await prisma.signUp.findMany({
-    where: { scheduleId, withdrawnAt: null },
-    select: { id: true },
+  // Intentionally create gaps/out-of-range positions (but keep them unique) to validate normalization.
+  const entries = await prisma.queueEntry.findMany({
+    where: { scheduleId },
+    select: { id: true, kind: true },
     orderBy: { createdAt: "asc" },
   });
-  const guests = await prisma.guestSignUp.findMany({
-    where: { scheduleId, removedAt: null },
-    select: { id: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const ops = [
-    ...users.map((u, idx) =>
-      prisma.signUp.update({
-        where: { id: u.id },
-        data: { position: idx % 2 === 0 ? 10 : 10 }, // duplicates on purpose
+  await prisma.$transaction(
+    entries.map((e, idx) =>
+      prisma.queueEntry.update({
+        where: { id: e.id },
+        data: { position: 100 + idx * 10 }, // gaps on purpose, still unique
       })
-    ),
-    ...guests.map((g, idx) =>
-      prisma.guestSignUp.update({
-        where: { id: g.id },
-        data: { position: idx % 2 === 0 ? 11 : 11 }, // duplicates on purpose
-      })
-    ),
-  ];
-  await prisma.$transaction(ops);
+    )
+  );
 }
 
 export async function createPasswordResetToken({

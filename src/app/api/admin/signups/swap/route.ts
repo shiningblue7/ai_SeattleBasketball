@@ -76,28 +76,34 @@ export async function POST(req: Request) {
 
   const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
 
-  await withScheduleQueueTx(scheduleId, (tx) =>
-    Promise.all([
-      a.kind === "guest"
-        ? tx.guestSignUp.update({
-            where: { id: a.id },
-            data: { position: b.position },
-          })
-        : tx.signUp.update({
-            where: { id: a.id },
-            data: { position: b.position },
-          }),
-      b.kind === "guest"
-        ? tx.guestSignUp.update({
-            where: { id: b.id },
-            data: { position: a.position },
-          })
-        : tx.signUp.update({
-            where: { id: b.id },
-            data: { position: a.position },
-          }),
-    ])
-  );
+  await withScheduleQueueTx(scheduleId, async (tx) => {
+    const [qa, qb] = await Promise.all([
+      tx.queueEntry.findFirst({
+        where: {
+          scheduleId,
+          ...(a.kind === "guest" ? { guestSignUpId: a.id } : { signUpId: a.id }),
+        },
+        select: { id: true, position: true },
+      }),
+      tx.queueEntry.findFirst({
+        where: {
+          scheduleId,
+          ...(b.kind === "guest" ? { guestSignUpId: b.id } : { signUpId: b.id }),
+        },
+        select: { id: true, position: true },
+      }),
+    ]);
+
+    if (!qa || !qb) {
+      throw new Error("Queue entry not found");
+    }
+
+    // Swap without violating the unique(scheduleId, position) constraint by using a temporary position.
+    const tmp = -1;
+    await tx.queueEntry.update({ where: { id: qa.id }, data: { position: tmp } });
+    await tx.queueEntry.update({ where: { id: qb.id }, data: { position: qa.position } });
+    await tx.queueEntry.update({ where: { id: qa.id }, data: { position: qb.position } });
+  });
 
   await createScheduleEvent({
     scheduleId,

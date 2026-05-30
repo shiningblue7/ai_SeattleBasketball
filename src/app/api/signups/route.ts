@@ -64,12 +64,23 @@ export async function POST(req: Request) {
         () => []
       );
       const slot = await getSignupSlotForUser(scheduleId, userId).catch(() => null);
-      const res = await withScheduleQueueTx(scheduleId, (tx) =>
-        tx.signUp.updateMany({
+      const res = await withScheduleQueueTx(scheduleId, async (tx) => {
+        const updateRes = await tx.signUp.updateMany({
           where: { scheduleId, userId, withdrawnAt: null },
           data: { withdrawnAt: new Date() },
-        })
-      );
+        });
+
+        // Remove the active queue entry (if any).
+        const s = await tx.signUp.findUnique({
+          where: { scheduleId_userId: { scheduleId, userId } },
+          select: { id: true },
+        });
+        if (s?.id) {
+          await tx.queueEntry.deleteMany({ where: { scheduleId, signUpId: s.id } });
+        }
+
+        return updateRes;
+      });
 
       if (res.count > 0) {
         await createScheduleEvent({
@@ -120,36 +131,47 @@ export async function POST(req: Request) {
     }
 
     await withScheduleQueueTx(scheduleId, async (tx) => {
-      const [lastUser, lastGuest] = await Promise.all([
-        tx.signUp.findFirst({
-          where: { scheduleId, withdrawnAt: null },
-          orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-          select: { position: true },
-        }),
-        tx.guestSignUp.findFirst({
-          where: { scheduleId, removedAt: null },
-          orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-          select: { position: true },
-        }),
-      ]);
+      const last = await tx.queueEntry.findFirst({
+        where: { scheduleId },
+        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+        select: { position: true },
+      });
+      const nextPosition = (last?.position ?? 0) + 1;
 
-      const nextPosition =
-        Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
+      const signUpId =
+        existing && existing.withdrawnAt
+          ? (
+              await tx.signUp.update({
+                where: { scheduleId_userId: { scheduleId, userId } },
+                data: { withdrawnAt: null, position: nextPosition },
+                select: { id: true },
+              })
+            ).id
+          : (
+              await tx.signUp.create({
+                data: {
+                  scheduleId,
+                  userId,
+                  position: nextPosition,
+                },
+                select: { id: true },
+              })
+            ).id;
 
-      if (existing && existing.withdrawnAt) {
-        await tx.signUp.update({
-          where: { scheduleId_userId: { scheduleId, userId } },
-          data: { withdrawnAt: null, position: nextPosition },
-        });
-      } else {
-        await tx.signUp.create({
-          data: {
-            scheduleId,
-            userId,
-            position: nextPosition,
-          },
-        });
-      }
+      await tx.queueEntry.upsert({
+        where: { signUpId },
+        create: {
+          scheduleId,
+          position: nextPosition,
+          kind: "USER",
+          signUpId,
+        },
+        update: {
+          scheduleId,
+          position: nextPosition,
+          kind: "USER",
+        },
+      });
     });
 
     await createScheduleEvent({
