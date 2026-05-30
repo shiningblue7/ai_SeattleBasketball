@@ -7,10 +7,13 @@ import { AuthButtons } from "@/app/_components/AuthButtons";
 import { GuestLineItem } from "@/app/_components/GuestLineItem";
 import { GuestSignUps } from "@/app/_components/GuestSignUps";
 import { SignupAvailability } from "@/app/_components/SignupAvailability";
+import { InlineWithdrawButton } from "@/app/_components/InlineWithdrawButton";
+import { RecentActivity, type ActivityItem } from "@/app/_components/RecentActivity";
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatScheduleDateTime, formatScheduleTimeHHMM } from "@/lib/time";
+import { ScheduleEventType } from "@prisma/client";
 
 type ActiveSchedule = Prisma.ScheduleGetPayload<{
   include: {
@@ -73,6 +76,15 @@ type GuestUiRow = {
   guestOfLabel: string;
   addedByUserId: string;
   addedByLabel: string;
+};
+
+type ActivityRow = {
+  id: string;
+  createdAt: Date;
+  type: ScheduleEventType;
+  actorName: string | null;
+  targetName: string | null;
+  metadata: unknown;
 };
 
 export default async function Home() {
@@ -220,12 +232,10 @@ export default async function Home() {
             >
               Edit time
             </a>
-            <a
-              href="#signup-actions"
+            <InlineWithdrawButton
+              scheduleId={activeSchedule?.id ?? ""}
               className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 font-medium text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-100 dark:hover:bg-rose-950/35"
-            >
-              Withdraw
-            </a>
+            />
           </div>
         ) : null}
 
@@ -303,6 +313,98 @@ export default async function Home() {
       addedByLabel,
     };
   });
+
+  const activityRaw: ActivityRow[] =
+    activeSchedule?.id
+      ? await prisma.scheduleEvent.findMany({
+          where: {
+            scheduleId: activeSchedule.id,
+            type: {
+              in: [
+                ScheduleEventType.SIGNUP_JOIN,
+                ScheduleEventType.SIGNUP_LEAVE,
+                ScheduleEventType.ADMIN_SIGNUP_JOIN,
+                ScheduleEventType.ADMIN_SIGNUP_LEAVE,
+                ScheduleEventType.GUEST_ADD,
+                ScheduleEventType.GUEST_REMOVE,
+                ScheduleEventType.SIGNUP_PROMOTED,
+              ],
+            },
+          },
+          select: {
+            id: true,
+            createdAt: true,
+            type: true,
+            metadata: true,
+            actor: { select: { name: true } },
+            target: { select: { name: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        }).then((rows) =>
+          rows.map((r) => ({
+            id: r.id,
+            createdAt: r.createdAt,
+            type: r.type,
+            actorName: r.actor?.name ?? null,
+            targetName: r.target?.name ?? null,
+            metadata: r.metadata,
+          }))
+        )
+      : [];
+
+  const formatActivityTime = (d: Date) => {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(d);
+  };
+
+  const label = (name: string | null) => name ?? "Someone";
+
+  const activityLine = (row: ActivityRow) => {
+    const md = (row.metadata ?? null) as null | { guestName?: unknown };
+    const guestName = typeof md?.guestName === "string" ? md.guestName : null;
+
+    if (row.type === ScheduleEventType.SIGNUP_JOIN) {
+      const who = label(row.targetName ?? row.actorName);
+      return `${who} signed up`;
+    }
+    if (row.type === ScheduleEventType.SIGNUP_LEAVE) {
+      const who = label(row.targetName ?? row.actorName);
+      return `${who} withdrew`;
+    }
+    if (row.type === ScheduleEventType.ADMIN_SIGNUP_JOIN) {
+      const who = label(row.targetName);
+      return `Admin added ${who}`;
+    }
+    if (row.type === ScheduleEventType.ADMIN_SIGNUP_LEAVE) {
+      const who = label(row.targetName);
+      return `Admin removed ${who}`;
+    }
+    if (row.type === ScheduleEventType.GUEST_ADD) {
+      if (guestName) return `Guest added: ${guestName}`;
+      return "Guest added";
+    }
+    if (row.type === ScheduleEventType.GUEST_REMOVE) {
+      return "Guest removed";
+    }
+    if (row.type === ScheduleEventType.SIGNUP_PROMOTED) {
+      const who = label(row.targetName);
+      return `${who} promoted to playing`;
+    }
+    return "Activity";
+  };
+
+  const activity: ActivityItem[] = activityRaw.map((row) => ({
+    id: row.id,
+    createdAt: row.createdAt.toISOString(),
+    line: activityLine(row),
+    timeLabel: formatActivityTime(row.createdAt),
+  }));
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-slate-900">
@@ -396,6 +498,10 @@ export default async function Home() {
                     No waitlist yet.
                   </div>
                 )}
+              </div>
+
+              <div className="sm:col-span-2">
+                <RecentActivity items={activity} />
               </div>
 
               <div className="sm:col-span-2">
