@@ -494,10 +494,13 @@ export default async function Home() {
               </div>
 
               <div className="sm:col-span-2">
-                <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                  <div className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
-                    Recent activity
-                  </div>
+                <details className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-zinc-950 outline-none dark:text-zinc-50">
+                    <span className="min-w-0 truncate">Recent activity</span>
+                    <span className="shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                      {activity.length ? `${activity.length} item${activity.length === 1 ? "" : "s"}` : "none"}
+                    </span>
+                  </summary>
                   {activity.length ? (
                     <ol className="mt-3 space-y-2 text-sm">
                       {activity.map((row) => (
@@ -519,7 +522,7 @@ export default async function Home() {
                       No recent activity yet.
                     </div>
                   )}
-                </div>
+                </details>
               </div>
 
               <div className="sm:col-span-2">
