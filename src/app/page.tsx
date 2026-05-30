@@ -7,6 +7,7 @@ import { AuthButtons } from "@/app/_components/AuthButtons";
 import { GuestLineItem } from "@/app/_components/GuestLineItem";
 import { GuestSignUps } from "@/app/_components/GuestSignUps";
 import { SignupAvailability } from "@/app/_components/SignupAvailability";
+import { InlineWithdrawButton } from "@/app/_components/InlineWithdrawButton";
 import { authOptions } from "@/auth";
 import { isAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -230,12 +231,10 @@ export default async function Home() {
             >
               Edit time
             </a>
-            <a
-              href="#signup-actions"
+            <InlineWithdrawButton
+              scheduleId={activeSchedule?.id ?? ""}
               className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 font-medium text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-100 dark:hover:bg-rose-950/35"
-            >
-              Withdraw
-            </a>
+            />
           </div>
         ) : null}
 
