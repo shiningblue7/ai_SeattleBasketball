@@ -5,9 +5,9 @@ import { authOptions } from "@/auth";
 import { requireAdmin } from "@/lib/authz";
 import { getPlayingKeysForSchedule, notifyWaitlistPromotionsForSchedule } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
-import { normalizeSchedulePositions } from "@/lib/schedulePositions";
 import { createScheduleEvent } from "@/lib/scheduleEvents";
 import { ScheduleEventType } from "@prisma/client";
+import { withScheduleQueueTx } from "@/lib/queueTx";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -43,11 +43,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Defensive: normalize first so a swap always changes ordering even if positions have drifted/duplicated.
-  await normalizeSchedulePositions(scheduleId).catch((e) =>
-    console.error("[positions] normalizeSchedulePositions failed", e)
-  );
-
   const lookupItem = async (id: string) => {
     const signUp = await prisma.signUp.findUnique({
       where: { id },
@@ -81,26 +76,28 @@ export async function POST(req: Request) {
 
   const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
 
-  await prisma.$transaction([
-    a.kind === "guest"
-      ? prisma.guestSignUp.update({
-          where: { id: a.id },
-          data: { position: b.position },
-        })
-      : prisma.signUp.update({
-          where: { id: a.id },
-          data: { position: b.position },
-        }),
-    b.kind === "guest"
-      ? prisma.guestSignUp.update({
-          where: { id: b.id },
-          data: { position: a.position },
-        })
-      : prisma.signUp.update({
-          where: { id: b.id },
-          data: { position: a.position },
-        }),
-  ]);
+  await withScheduleQueueTx(scheduleId, (tx) =>
+    Promise.all([
+      a.kind === "guest"
+        ? tx.guestSignUp.update({
+            where: { id: a.id },
+            data: { position: b.position },
+          })
+        : tx.signUp.update({
+            where: { id: a.id },
+            data: { position: b.position },
+          }),
+      b.kind === "guest"
+        ? tx.guestSignUp.update({
+            where: { id: b.id },
+            data: { position: a.position },
+          })
+        : tx.signUp.update({
+            where: { id: b.id },
+            data: { position: a.position },
+          }),
+    ])
+  );
 
   await createScheduleEvent({
     scheduleId,

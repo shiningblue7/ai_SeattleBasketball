@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
+
+type PrismaLike = typeof prisma | Prisma.TransactionClient;
 
 type CombinedRow =
   | {
@@ -14,14 +17,14 @@ type CombinedRow =
       createdAt: Date;
     };
 
-export async function normalizeSchedulePositions(scheduleId: string) {
-  const [users, guests] = await prisma.$transaction([
-    prisma.signUp.findMany({
+export async function normalizeSchedulePositions(scheduleId: string, db: PrismaLike = prisma) {
+  const [users, guests] = await Promise.all([
+    db.signUp.findMany({
       where: { scheduleId, withdrawnAt: null },
       select: { id: true, position: true, createdAt: true },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     }),
-    prisma.guestSignUp.findMany({
+    db.guestSignUp.findMany({
       where: { scheduleId, removedAt: null },
       select: { id: true, position: true, createdAt: true },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
@@ -51,13 +54,13 @@ export async function normalizeSchedulePositions(scheduleId: string) {
     .filter(({ row, desired }) => row.position !== desired)
     .map(({ row, desired }) => {
       if (row.kind === "user") {
-        return prisma.signUp.update({
+        return db.signUp.update({
           where: { id: row.id },
           data: { position: desired },
           select: { id: true },
         });
       }
-      return prisma.guestSignUp.update({
+      return db.guestSignUp.update({
         where: { id: row.id },
         data: { position: desired },
         select: { id: true },
@@ -66,5 +69,5 @@ export async function normalizeSchedulePositions(scheduleId: string) {
 
   if (updates.length === 0) return;
 
-  await prisma.$transaction(updates);
+  await Promise.all(updates);
 }
