@@ -10,9 +10,9 @@ import {
   recordWaitlistPromotionsForSchedule,
 } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
-import { normalizeSchedulePositions } from "@/lib/schedulePositions";
 import { createScheduleEvent } from "@/lib/scheduleEvents";
 import { ScheduleEventType } from "@prisma/client";
+import { withScheduleQueueTx } from "@/lib/queueTx";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -64,32 +64,34 @@ export async function POST(req: Request) {
     );
   }
 
-  const [lastUser, lastGuest] = await prisma.$transaction([
-    prisma.signUp.findFirst({
-      where: { scheduleId, withdrawnAt: null },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    }),
-    prisma.guestSignUp.findFirst({
-      where: { scheduleId, removedAt: null },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    }),
-  ]);
+  const guest = await withScheduleQueueTx(scheduleId, async (tx) => {
+    const [lastUser, lastGuest] = await Promise.all([
+      tx.signUp.findFirst({
+        where: { scheduleId, withdrawnAt: null },
+        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+        select: { position: true },
+      }),
+      tx.guestSignUp.findFirst({
+        where: { scheduleId, removedAt: null },
+        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+        select: { position: true },
+      }),
+    ]);
 
-  const nextPosition =
-    Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
+    const nextPosition =
+      Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
 
-  const guest = await prisma.guestSignUp.create({
-    data: {
-      scheduleId,
-      guestName,
-      guestOfUserId,
-      addedByUserId: userId,
-      position: nextPosition,
-    },
-    select: { id: true },
-  } as Prisma.GuestSignUpCreateArgs);
+    return tx.guestSignUp.create({
+      data: {
+        scheduleId,
+        guestName,
+        guestOfUserId,
+        addedByUserId: userId,
+        position: nextPosition,
+      },
+      select: { id: true },
+    } as Prisma.GuestSignUpCreateArgs);
+  });
 
   await createScheduleEvent({
     scheduleId,
@@ -140,10 +142,12 @@ export async function DELETE(req: Request) {
 
   const beforePlayingKeys = await getPlayingKeysForSchedule(guest.scheduleId).catch(() => []);
 
-  const res = await prisma.guestSignUp.updateMany({
-    where: { id: guestSignUpId, removedAt: null },
-    data: { removedAt: new Date() },
-  });
+  const res = await withScheduleQueueTx(guest.scheduleId, (tx) =>
+    tx.guestSignUp.updateMany({
+      where: { id: guestSignUpId, removedAt: null },
+      data: { removedAt: new Date() },
+    })
+  );
 
   if (res.count === 0) {
     return NextResponse.json({ ok: true });
@@ -156,10 +160,6 @@ export async function DELETE(req: Request) {
     targetUserId: guest.guestOfUserId,
     guestSignUpId: guest.id,
   }).catch((e) => console.error("[events] createScheduleEvent failed", e));
-
-  await normalizeSchedulePositions(guest.scheduleId).catch((e) =>
-    console.error("[positions] normalizeSchedulePositions failed", e)
-  );
 
   await notifyWaitlistPromotionsForSchedule({
     scheduleId: guest.scheduleId,

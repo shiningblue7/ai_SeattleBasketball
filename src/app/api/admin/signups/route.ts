@@ -11,9 +11,9 @@ import {
   recordWaitlistPromotionsForSchedule,
 } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
-import { normalizeSchedulePositions } from "@/lib/schedulePositions";
 import { createScheduleEvent } from "@/lib/scheduleEvents";
 import { ScheduleEventType } from "@prisma/client";
+import { withScheduleQueueTx } from "@/lib/queueTx";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -58,16 +58,14 @@ export async function POST(req: Request) {
   if (action === "leave") {
     const beforePlayingKeys = await getPlayingKeysForSchedule(scheduleId).catch(() => []);
     const slot = await getSignupSlotForUser(scheduleId, userId).catch(() => null);
-    const res = await prisma.signUp.updateMany({
-      where: { scheduleId, userId, withdrawnAt: null },
-      data: { withdrawnAt: new Date() },
-    });
+    const res = await withScheduleQueueTx(scheduleId, (tx) =>
+      tx.signUp.updateMany({
+        where: { scheduleId, userId, withdrawnAt: null },
+        data: { withdrawnAt: new Date() },
+      })
+    );
 
     if (res.count > 0) {
-      await normalizeSchedulePositions(scheduleId).catch((e) =>
-        console.error("[positions] normalizeSchedulePositions failed", e)
-      );
-
       const actorId = session!.user!.id;
       await createScheduleEvent({
         scheduleId,
@@ -110,36 +108,38 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const [lastUser, lastGuest] = await prisma.$transaction([
-    prisma.signUp.findFirst({
-      where: { scheduleId, withdrawnAt: null },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    }),
-    prisma.guestSignUp.findFirst({
-      where: { scheduleId, removedAt: null },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    }),
-  ]);
+  await withScheduleQueueTx(scheduleId, async (tx) => {
+    const [lastUser, lastGuest] = await Promise.all([
+      tx.signUp.findFirst({
+        where: { scheduleId, withdrawnAt: null },
+        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+        select: { position: true },
+      }),
+      tx.guestSignUp.findFirst({
+        where: { scheduleId, removedAt: null },
+        orderBy: [{ position: "desc" }, { createdAt: "desc" }],
+        select: { position: true },
+      }),
+    ]);
 
-  const nextPosition =
-    Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
+    const nextPosition =
+      Math.max(lastUser?.position ?? 0, lastGuest?.position ?? 0) + 1;
 
-  if (existing && existing.withdrawnAt) {
-    await prisma.signUp.update({
-      where: { scheduleId_userId: { scheduleId, userId } },
-      data: { withdrawnAt: null, position: nextPosition },
-    });
-  } else {
-    await prisma.signUp.create({
-      data: {
-        scheduleId,
-        userId,
-        position: nextPosition,
-      },
-    });
-  }
+    if (existing && existing.withdrawnAt) {
+      await tx.signUp.update({
+        where: { scheduleId_userId: { scheduleId, userId } },
+        data: { withdrawnAt: null, position: nextPosition },
+      });
+    } else {
+      await tx.signUp.create({
+        data: {
+          scheduleId,
+          userId,
+          position: nextPosition,
+        },
+      });
+    }
+  });
 
   {
     const actorId = session!.user!.id;
