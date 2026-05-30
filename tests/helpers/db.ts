@@ -49,6 +49,10 @@ type SignupsLookup = {
   scheduleId: string;
 };
 
+export type CombinedQueueRow =
+  | { kind: "user"; id: string; userId: string; position: number; createdAt: Date }
+  | { kind: "guest"; id: string; position: number; createdAt: Date };
+
 type PasswordResetTokenInput = {
   userId: string;
   token: string;
@@ -158,6 +162,70 @@ export async function listGuestSignupsForSchedule({ scheduleId }: SignupsLookup)
     where: { scheduleId, removedAt: null },
     orderBy: { position: "asc" },
   });
+}
+
+export async function listCombinedQueueForSchedule({ scheduleId }: SignupsLookup) {
+  const [users, guests] = await Promise.all([
+    prisma.signUp.findMany({
+      where: { scheduleId, withdrawnAt: null },
+      select: { id: true, userId: true, position: true, createdAt: true },
+    }),
+    prisma.guestSignUp.findMany({
+      where: { scheduleId, removedAt: null },
+      select: { id: true, position: true, createdAt: true },
+    }),
+  ]);
+
+  const combined: CombinedQueueRow[] = [
+    ...users.map((s) => ({
+      kind: "user" as const,
+      id: s.id,
+      userId: s.userId,
+      position: s.position,
+      createdAt: s.createdAt,
+    })),
+    ...guests.map((g) => ({
+      kind: "guest" as const,
+      id: g.id,
+      position: g.position,
+      createdAt: g.createdAt,
+    })),
+  ].sort((a, b) => {
+    if (a.position !== b.position) return a.position - b.position;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  return combined;
+}
+
+export async function forceMessyPositionsForSchedule({ scheduleId }: SignupsLookup) {
+  // Intentionally create duplicates/gaps to validate that server-side normalization fixes it.
+  const users = await prisma.signUp.findMany({
+    where: { scheduleId, withdrawnAt: null },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const guests = await prisma.guestSignUp.findMany({
+    where: { scheduleId, removedAt: null },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const ops = [
+    ...users.map((u, idx) =>
+      prisma.signUp.update({
+        where: { id: u.id },
+        data: { position: idx % 2 === 0 ? 10 : 10 }, // duplicates on purpose
+      })
+    ),
+    ...guests.map((g, idx) =>
+      prisma.guestSignUp.update({
+        where: { id: g.id },
+        data: { position: idx % 2 === 0 ? 11 : 11 }, // duplicates on purpose
+      })
+    ),
+  ];
+  await prisma.$transaction(ops);
 }
 
 export async function createPasswordResetToken({
