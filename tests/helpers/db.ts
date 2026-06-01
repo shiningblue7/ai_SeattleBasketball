@@ -234,6 +234,10 @@ export async function forceMessyPositionsForSchedule({ scheduleId }: SignupsLook
   );
 }
 
+export async function deleteQueueEntryForSignup(signUpId: string) {
+  return prisma.queueEntry.deleteMany({ where: { signUpId } });
+}
+
 export async function createPasswordResetToken({
   userId,
   token,
