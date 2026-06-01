@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { createScheduleEvent } from "@/lib/scheduleEvents";
 import { ScheduleEventType } from "@prisma/client";
 import { withScheduleQueueTx } from "@/lib/queueTx";
+import { normalizeSchedulePositions } from "@/lib/schedulePositions";
 
 export async function POST(req: Request) {
   try {
@@ -80,6 +81,9 @@ export async function POST(req: Request) {
     );
 
     await withScheduleQueueTx(scheduleId, async (tx) => {
+      // Ensure queue entries exist (older schedules may not have been backfilled yet).
+      await normalizeSchedulePositions(scheduleId, tx);
+
       const [qa, qb] = await Promise.all([
         tx.queueEntry.findFirst({
           where: {
