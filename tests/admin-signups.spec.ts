@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   disconnectDb,
+  listCombinedQueueForSchedule,
   listGuestSignupsForSchedule,
   listSignupsForSchedule,
   resetDb,
@@ -106,6 +107,152 @@ test.describe("admin signups", () => {
       const signups = await listSignupsForSchedule({ scheduleId: schedule.id });
       return signups.map((s) => s.userId);
     }).toEqual([userB.id, userA.id]);
+  });
+
+  test("admin can add a user at a specific queue position", async ({ page }) => {
+    const schedule = await seedSchedule({
+      title: "Insert User Run",
+      date: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      active: true,
+      limit: 12,
+    });
+    const userA = await seedUser({
+      email: "insert1@example.com",
+      password: "password123",
+      name: "Insert One",
+    });
+    const userB = await seedUser({
+      email: "insert2@example.com",
+      password: "password123",
+      name: "Insert Two",
+    });
+    const userC = await seedUser({
+      email: "insert3@example.com",
+      password: "password123",
+      name: "Insert Three",
+    });
+    await seedSignup({ scheduleId: schedule.id, userId: userA.id, position: 1 });
+    await seedSignup({ scheduleId: schedule.id, userId: userB.id, position: 2 });
+
+    await signInAsAdmin(page);
+    const response = await page.request.post("/api/admin/signups", {
+      data: {
+        scheduleId: schedule.id,
+        userId: userC.id,
+        action: "join",
+        position: 2,
+      },
+    });
+
+    expect(response.ok()).toBe(true);
+    await expect(response.json()).resolves.toMatchObject({
+      position: 2,
+      status: "playing",
+      userLabel: "Insert Three",
+    });
+    await expect.poll(async () => {
+      const rows = await listCombinedQueueForSchedule({ scheduleId: schedule.id });
+      return rows.map((row) => row.kind === "user" ? row.userId : row.id);
+    }).toEqual([userA.id, userC.id, userB.id]);
+  });
+
+  test("admin add user UI clears selection and shows inserted position", async ({ page }) => {
+    const schedule = await seedSchedule({
+      title: "Inline Add Run",
+      date: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      active: true,
+      limit: 12,
+    });
+    const userA = await seedUser({
+      email: "inline1@example.com",
+      password: "password123",
+      name: "Inline One",
+    });
+    await seedUser({
+      email: "inline2@example.com",
+      password: "password123",
+      name: "Inline Two",
+    });
+    await seedSignup({ scheduleId: schedule.id, userId: userA.id, position: 1 });
+
+    await signInAsAdmin(page);
+    await page.goto(`/admin/signups?scheduleId=${schedule.id}`);
+
+    const addUserSection = page.getByRole("region", { name: "Add user to schedule" });
+    const search = addUserSection.getByPlaceholder("Type a name or email…");
+    await search.fill("Inline Two");
+    await addUserSection.getByRole("button", { name: /Inline Two/ }).click();
+    await addUserSection.getByRole("button", { name: "Add" }).click();
+
+    await expect(addUserSection.getByText("Added Inline Two at #2 (playing).")).toBeVisible();
+    await expect(search).toHaveValue("");
+  });
+
+  test("admin add user search hides users already signed up", async ({ page }) => {
+    const schedule = await seedSchedule({
+      title: "Hidden Signed Up Run",
+      date: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      active: true,
+      limit: 12,
+    });
+    const signedUp = await seedUser({
+      email: "hidden-signed-up@example.com",
+      password: "password123",
+      name: "Hidden Signed Up",
+    });
+    await seedSignup({ scheduleId: schedule.id, userId: signedUp.id, position: 1 });
+
+    await signInAsAdmin(page);
+    await page.goto(`/admin/signups?scheduleId=${schedule.id}`);
+
+    const addUserSection = page.getByRole("region", { name: "Add user to schedule" });
+    await expect(
+      addUserSection.getByText("Already signed-up users are hidden from search results.")
+    ).toBeVisible();
+    await addUserSection.getByPlaceholder("Type a name or email…").fill("Hidden Signed Up");
+    await expect(addUserSection.getByRole("button", { name: /Hidden Signed Up/ })).toHaveCount(0);
+  });
+
+  test("admin can add a guest at a specific queue position", async ({ page }) => {
+    const schedule = await seedSchedule({
+      title: "Insert Guest Run",
+      date: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      active: true,
+      limit: 12,
+    });
+    const userA = await seedUser({
+      email: "guest-insert1@example.com",
+      password: "password123",
+      name: "Guest Insert One",
+    });
+    const userB = await seedUser({
+      email: "guest-insert2@example.com",
+      password: "password123",
+      name: "Guest Insert Two",
+    });
+    await seedSignup({ scheduleId: schedule.id, userId: userA.id, position: 1 });
+    await seedSignup({ scheduleId: schedule.id, userId: userB.id, position: 2 });
+
+    await signInAsAdmin(page);
+    const response = await page.request.post("/api/guests", {
+      data: {
+        scheduleId: schedule.id,
+        guestName: "Inserted Guest",
+        guestOfUserId: userA.id,
+        position: 2,
+      },
+    });
+
+    expect(response.ok()).toBe(true);
+    await expect(response.json()).resolves.toMatchObject({
+      position: 2,
+      status: "playing",
+      guestName: "Inserted Guest",
+    });
+    await expect.poll(async () => {
+      const rows = await listCombinedQueueForSchedule({ scheduleId: schedule.id });
+      return rows.map((row) => row.kind === "user" ? row.userId : "guest");
+    }).toEqual([userA.id, "guest", userB.id]);
   });
 
   test("admin can promote a waitlist guest into playing", async ({ page }) => {

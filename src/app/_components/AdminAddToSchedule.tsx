@@ -14,18 +14,25 @@ type UserRow = {
 export function AdminAddToSchedule({
   scheduleId,
   signedUpUserIds,
+  queueLength,
+  scheduleLimit,
 }: {
   scheduleId: string;
   signedUpUserIds: string[];
+  queueLength: number;
+  scheduleLimit: number;
 }) {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [query, setQuery] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [positionChoice, setPositionChoice] = useState<string>("bottom");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const maxInsertPosition = queueLength + 1;
 
   useEffect(() => {
     let cancelled = false;
@@ -64,8 +71,10 @@ export function AdminAddToSchedule({
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
+    const signedUpIds = new Set(signedUpUserIds);
 
     const scored = users
+      .filter((u) => !signedUpIds.has(u.id))
       .map((u) => {
         const name = (u.name ?? "").toLowerCase();
         const email = (u.email ?? "").toLowerCase();
@@ -82,7 +91,7 @@ export function AdminAddToSchedule({
       .sort((a, b) => b.score - a.score);
 
     return scored.slice(0, 12).map((x) => x.u);
-  }, [users, query]);
+  }, [users, query, signedUpUserIds]);
 
   const selectUser = (u: UserRow) => {
     const label = (u.name || u.email || u.id) + (u.member ? " (member)" : "");
@@ -103,14 +112,40 @@ export function AdminAddToSchedule({
     selectedUserId && signedUpUserIds.includes(selectedUserId)
   );
 
+  useEffect(() => {
+    if (positionChoice === "bottom") return;
+    const selectedPosition = Number.parseInt(positionChoice, 10);
+    if (!Number.isFinite(selectedPosition) || selectedPosition > maxInsertPosition) {
+      setPositionChoice("bottom");
+    }
+  }, [maxInsertPosition, positionChoice]);
+
+  const positionLabel = (position: number) => {
+    if (position === 1) return "1 - Top";
+    if (position === scheduleLimit) return `${position} - Last playing spot`;
+    if (position === scheduleLimit + 1) return `${position} - Top of waitlist`;
+    if (position === maxInsertPosition) return `${position} - Bottom`;
+    return String(position);
+  };
+
   const mutate = async (action: "join" | "leave") => {
     setError(null);
+    setSuccess(null);
     setBusy(true);
     try {
+      const requestedPosition =
+        action === "join" && positionChoice !== "bottom"
+          ? Number.parseInt(positionChoice, 10)
+          : null;
       const resp = await fetch("/api/admin/signups", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ scheduleId, userId: selectedUserId, action }),
+        body: JSON.stringify({
+          scheduleId,
+          userId: selectedUserId,
+          action,
+          position: requestedPosition,
+        }),
       });
 
       if (!resp.ok) {
@@ -121,7 +156,29 @@ export function AdminAddToSchedule({
         return;
       }
 
+      const data = (await resp.json().catch(() => null)) as
+        | {
+            position?: number;
+            status?: "playing" | "waitlist";
+            userLabel?: string;
+          }
+        | null;
+
       router.refresh();
+      if (action === "join") {
+        const label = data?.userLabel ?? selectedLabel ?? "User";
+        const position = data?.position;
+        const status = data?.status;
+        setSuccess(
+          position && status
+            ? `Added ${label} at #${position} (${status}).`
+            : `Added ${label} to the schedule.`
+        );
+        setSelectedUserId("");
+        setQuery("");
+        setOpen(false);
+        setPositionChoice("bottom");
+      }
     } finally {
       setBusy(false);
     }
@@ -129,9 +186,12 @@ export function AdminAddToSchedule({
 
   return (
     <div className="w-full rounded-2xl border border-zinc-200 p-6">
-      <div className="text-base font-semibold text-zinc-950">Admin</div>
+      <div className="text-base font-semibold text-zinc-950 dark:text-zinc-50">Admin</div>
 
-      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
+      <section
+        aria-label="Add user to schedule"
+        className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
+      >
         <div className="text-sm font-medium text-zinc-950">Add user to schedule</div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="relative">
@@ -200,9 +260,26 @@ export function AdminAddToSchedule({
                 })}
               </div>
             ) : null}
+            <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              Already signed-up users are hidden from search results.
+            </div>
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              className="h-11 min-w-40 rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
+              value={positionChoice}
+              onChange={(e) => setPositionChoice(e.target.value)}
+              disabled={busy}
+              aria-label="Add position"
+            >
+              <option value="bottom">Bottom</option>
+              {Array.from({ length: maxInsertPosition }, (_, i) => i + 1).map((position) => (
+                <option key={position} value={position}>
+                  {positionLabel(position)}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
@@ -227,7 +304,12 @@ export function AdminAddToSchedule({
             Selected: {selectedUser.name ?? selectedUser.email ?? selectedUser.id}
           </div>
         ) : null}
-      </div>
+        {success ? (
+          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
+            {success}
+          </div>
+        ) : null}
+      </section>
 
       {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
     </div>
