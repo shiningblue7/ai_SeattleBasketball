@@ -21,6 +21,19 @@ export async function normalizeSchedulePositions(scheduleId: string, db: PrismaL
   // Phase B (option A): QueueEntry is the source of truth for ordering.
   // We normalize queue entries first, then mirror positions back to SignUp/GuestSignUp for compatibility.
 
+  const [activeSignUps, activeGuests] = await Promise.all([
+    db.signUp.findMany({
+      where: { scheduleId, withdrawnAt: null },
+      select: { id: true, position: true, createdAt: true },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    }),
+    db.guestSignUp.findMany({
+      where: { scheduleId, removedAt: null },
+      select: { id: true, position: true, createdAt: true },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
+
   let entries = await db.queueEntry.findMany({
     where: { scheduleId },
     select: {
@@ -33,35 +46,34 @@ export async function normalizeSchedulePositions(scheduleId: string, db: PrismaL
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   });
 
-  // If QueueEntry rows are missing for a schedule (e.g. older data or a failed backfill),
-  // rebuild them from the existing SignUp/GuestSignUp rows so admin reorder keeps working.
-  if (entries.length === 0) {
-    const [signUps, guests] = await Promise.all([
-      db.signUp.findMany({
-        where: { scheduleId, withdrawnAt: null },
-        select: { id: true, position: true, createdAt: true },
-        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-      }),
-      db.guestSignUp.findMany({
-        where: { scheduleId, removedAt: null },
-        select: { id: true, position: true, createdAt: true },
-        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-      }),
-    ]);
+  const activeSignUpIds = new Set(activeSignUps.map((s) => s.id));
+  const activeGuestIds = new Set(activeGuests.map((g) => g.id));
+  const entrySignUpIds = new Set(entries.map((e) => e.signUpId).filter((id): id is string => Boolean(id)));
+  const entryGuestIds = new Set(entries.map((e) => e.guestSignUpId).filter((id): id is string => Boolean(id)));
+  const hasMissingEntries =
+    activeSignUps.some((s) => !entrySignUpIds.has(s.id)) ||
+    activeGuests.some((g) => !entryGuestIds.has(g.id));
+  const hasStaleEntries = entries.some((e) => {
+    if (e.signUpId) return !activeSignUpIds.has(e.signUpId);
+    if (e.guestSignUpId) return !activeGuestIds.has(e.guestSignUpId);
+    return true;
+  });
+  const hasWrongCount = entries.length !== activeSignUps.length + activeGuests.length;
 
+  // If QueueEntry rows are missing/stale for a schedule (e.g. partial backfill or older data),
+  // rebuild them from the active SignUp/GuestSignUp rows so admin reorder keeps working.
+  if (hasMissingEntries || hasStaleEntries || hasWrongCount) {
     const combined = [
-      ...signUps.map((s) => ({ kind: "USER" as const, id: s.id, position: s.position, createdAt: s.createdAt })),
-      ...guests.map((g) => ({ kind: "GUEST" as const, id: g.id, position: g.position, createdAt: g.createdAt })),
+      ...activeSignUps.map((s) => ({ kind: "USER" as const, id: s.id, position: s.position, createdAt: s.createdAt })),
+      ...activeGuests.map((g) => ({ kind: "GUEST" as const, id: g.id, position: g.position, createdAt: g.createdAt })),
     ].sort((a, b) => {
       if (a.position !== b.position) return a.position - b.position;
       return a.createdAt.getTime() - b.createdAt.getTime();
     });
 
-    if (combined.length === 0) return;
-
-    await Promise.all([
-      db.queueEntry.deleteMany({ where: { scheduleId } }),
-      ...combined.map((row, idx) => {
+    await db.queueEntry.deleteMany({ where: { scheduleId } });
+    await Promise.all(
+      combined.map((row, idx) => {
         const pos = idx + 1;
         if (row.kind === "USER") {
           return db.queueEntry.create({
@@ -73,14 +85,16 @@ export async function normalizeSchedulePositions(scheduleId: string, db: PrismaL
           data: { scheduleId, position: pos, kind: "GUEST", guestSignUpId: row.id },
           select: { id: true },
         });
-      }),
-    ]);
+      })
+    );
 
     entries = await db.queueEntry.findMany({
       where: { scheduleId },
       select: { id: true, position: true, createdAt: true, signUpId: true, guestSignUpId: true },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     });
+
+    if (entries.length === 0) return;
   }
 
   const entryPosUpdates = entries
