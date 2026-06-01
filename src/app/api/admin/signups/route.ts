@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { createScheduleEvent } from "@/lib/scheduleEvents";
 import { ScheduleEventType } from "@prisma/client";
 import { withScheduleQueueTx } from "@/lib/queueTx";
+import { insertQueueEntryAtPosition } from "@/lib/schedulePositions";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -23,12 +24,16 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => null)) as
-    | { scheduleId?: string; userId?: string; action?: "join" | "leave" }
+    | { scheduleId?: string; userId?: string; action?: "join" | "leave"; position?: number | null }
     | null;
 
   const scheduleId = body?.scheduleId;
   const userId = body?.userId;
   const action = body?.action;
+  const requestedPosition =
+    typeof body?.position === "number" && Number.isFinite(body.position)
+      ? body.position
+      : null;
 
   if (!scheduleId || !userId || !action) {
     return NextResponse.json(
@@ -39,7 +44,7 @@ export async function POST(req: Request) {
 
   const schedule = await prisma.schedule.findUnique({
     where: { id: scheduleId },
-    select: { id: true, title: true, date: true },
+    select: { id: true, title: true, date: true, limit: true },
   });
 
   if (!schedule) {
@@ -116,38 +121,48 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  await withScheduleQueueTx(scheduleId, async (tx) => {
-    const last = await tx.queueEntry.findFirst({
-      where: { scheduleId },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    });
-    const nextPosition = (last?.position ?? 0) + 1;
-
+  const assignedPosition = await withScheduleQueueTx(scheduleId, async (tx) => {
     if (existing && existing.withdrawnAt) {
       const updated = await tx.signUp.update({
         where: { scheduleId_userId: { scheduleId, userId } },
-        data: { withdrawnAt: null, position: nextPosition },
+        data: { withdrawnAt: null },
         select: { id: true },
       });
-      await tx.queueEntry.upsert({
-        where: { signUpId: updated.id },
-        create: { scheduleId, position: nextPosition, kind: "USER", signUpId: updated.id },
-        update: { scheduleId, position: nextPosition, kind: "USER" },
+      const position = await insertQueueEntryAtPosition({
+        db: tx,
+        scheduleId,
+        kind: "USER",
+        signUpId: updated.id,
+        requestedPosition,
       });
+      await tx.signUp.update({
+        where: { id: updated.id },
+        data: { position },
+        select: { id: true },
+      });
+      return position;
     } else {
       const created = await tx.signUp.create({
         data: {
           scheduleId,
           userId,
-          position: nextPosition,
+          position: requestedPosition ?? 0,
         },
         select: { id: true },
       });
-      await tx.queueEntry.create({
-        data: { scheduleId, position: nextPosition, kind: "USER", signUpId: created.id },
+      const position = await insertQueueEntryAtPosition({
+        db: tx,
+        scheduleId,
+        kind: "USER",
+        signUpId: created.id,
+        requestedPosition,
+      });
+      await tx.signUp.update({
+        where: { id: created.id },
+        data: { position },
         select: { id: true },
       });
+      return position;
     }
   });
 
@@ -173,5 +188,10 @@ export async function POST(req: Request) {
     }).catch((e) => console.error("[email] notifyAdminsOfSignupChange failed", e));
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    position: assignedPosition,
+    status: assignedPosition <= schedule.limit ? "playing" : "waitlist",
+    userLabel: user.name ?? user.email ?? user.id,
+  });
 }

@@ -138,3 +138,60 @@ export async function normalizeSchedulePositions(scheduleId: string, db: PrismaL
 
   if (mirrorOps.length) await Promise.all(mirrorOps);
 }
+
+export async function insertQueueEntryAtPosition({
+  db,
+  scheduleId,
+  kind,
+  signUpId,
+  guestSignUpId,
+  requestedPosition,
+}: {
+  db: PrismaLike;
+  scheduleId: string;
+  kind: "USER" | "GUEST";
+  signUpId?: string;
+  guestSignUpId?: string;
+  requestedPosition?: number | null;
+}) {
+  const count = await db.queueEntry.count({ where: { scheduleId } });
+  const targetPosition =
+    typeof requestedPosition === "number" && Number.isFinite(requestedPosition)
+      ? Math.max(1, Math.min(Math.trunc(requestedPosition), count + 1))
+      : count + 1;
+
+  if (targetPosition <= count) {
+    const offset = 100000;
+    await db.queueEntry.updateMany({
+      where: { scheduleId, position: { gte: targetPosition } },
+      data: { position: { increment: offset } },
+    });
+    await db.queueEntry.create({
+      data: {
+        scheduleId,
+        position: targetPosition,
+        kind,
+        signUpId,
+        guestSignUpId,
+      },
+      select: { id: true },
+    });
+    await db.queueEntry.updateMany({
+      where: { scheduleId, position: { gte: targetPosition + offset } },
+      data: { position: { decrement: offset - 1 } },
+    });
+  } else {
+    await db.queueEntry.create({
+      data: {
+        scheduleId,
+        position: targetPosition,
+        kind,
+        signUpId,
+        guestSignUpId,
+      },
+      select: { id: true },
+    });
+  }
+
+  return targetPosition;
+}

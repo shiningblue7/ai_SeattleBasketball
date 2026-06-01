@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { createScheduleEvent } from "@/lib/scheduleEvents";
 import { ScheduleEventType } from "@prisma/client";
 import { withScheduleQueueTx } from "@/lib/queueTx";
+import { insertQueueEntryAtPosition } from "@/lib/schedulePositions";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -25,13 +26,17 @@ export async function POST(req: Request) {
   const admin = isAdmin(session.user?.roles ?? null);
 
   const body = (await req.json().catch(() => null)) as
-    | { scheduleId?: string; guestName?: string; guestOfUserId?: string }
+    | { scheduleId?: string; guestName?: string; guestOfUserId?: string; position?: number | null }
     | null;
 
   const scheduleId = body?.scheduleId;
   const guestName = body?.guestName?.trim();
   const guestOfUserIdRaw = body?.guestOfUserId;
   const guestOfUserId = admin && guestOfUserIdRaw ? guestOfUserIdRaw : userId;
+  const requestedPosition =
+    admin && typeof body?.position === "number" && Number.isFinite(body.position)
+      ? body.position
+      : null;
 
   if (!scheduleId || !guestName) {
     return NextResponse.json(
@@ -42,7 +47,7 @@ export async function POST(req: Request) {
 
   const schedule = await prisma.schedule.findUnique({
     where: { id: scheduleId },
-    select: { id: true, active: true },
+    select: { id: true, active: true, limit: true },
   });
 
   if (!schedule || !schedule.active) {
@@ -64,36 +69,32 @@ export async function POST(req: Request) {
     );
   }
 
-  const guest = await withScheduleQueueTx(scheduleId, async (tx) => {
-    const last = await tx.queueEntry.findFirst({
-      where: { scheduleId },
-      orderBy: [{ position: "desc" }, { createdAt: "desc" }],
-      select: { position: true },
-    });
-    const nextPosition = (last?.position ?? 0) + 1;
-
+  const { guest, position } = await withScheduleQueueTx(scheduleId, async (tx) => {
     const created = await tx.guestSignUp.create({
       data: {
         scheduleId,
         guestName,
         guestOfUserId,
         addedByUserId: userId,
-        position: nextPosition,
+        position: requestedPosition ?? 0,
       },
       select: { id: true },
     } as Prisma.GuestSignUpCreateArgs);
 
-    await tx.queueEntry.create({
-      data: {
-        scheduleId,
-        position: nextPosition,
-        kind: "GUEST",
-        guestSignUpId: created.id,
-      },
+    const position = await insertQueueEntryAtPosition({
+      db: tx,
+      scheduleId,
+      kind: "GUEST",
+      guestSignUpId: created.id,
+      requestedPosition,
+    });
+    await tx.guestSignUp.update({
+      where: { id: created.id },
+      data: { position },
       select: { id: true },
     });
 
-    return created;
+    return { guest: created, position };
   });
 
   await createScheduleEvent({
@@ -105,7 +106,12 @@ export async function POST(req: Request) {
     metadata: { guestName },
   }).catch((e) => console.error("[events] createScheduleEvent failed", e));
 
-  return NextResponse.json({ guest });
+  return NextResponse.json({
+    guest,
+    position,
+    status: position <= schedule.limit ? "playing" : "waitlist",
+    guestName,
+  });
 }
 
 export async function DELETE(req: Request) {

@@ -78,7 +78,7 @@ test.describe("queue ordering invariants", () => {
     // Admin reorder should normalize and still succeed.
     await signInAsAdmin(page);
     await page.goto(`/admin/signups?scheduleId=${encodeURIComponent(schedule.id)}`);
-    await expect(page.getByRole("combobox").first()).toHaveValue(schedule.id);
+    await expect(page.getByLabel("Schedule", { exact: true })).toHaveValue(schedule.id);
     // Swap the last two rows via "Up" on the last one (any reorder triggers normalization).
     const upButtons = page.getByRole("button", { name: "Up" });
     await upButtons.last().click();
@@ -180,7 +180,7 @@ test.describe("queue ordering invariants", () => {
 
     await signInAsAdmin(page);
     await page.goto(`/admin/signups?scheduleId=${encodeURIComponent(schedule.id)}`);
-    await expect(page.getByRole("combobox").first()).toHaveValue(schedule.id);
+    await expect(page.getByLabel("Schedule", { exact: true })).toHaveValue(schedule.id);
 
     // Fire many admin-join requests at once. They should serialize via advisory lock + normalize.
     await Promise.all(

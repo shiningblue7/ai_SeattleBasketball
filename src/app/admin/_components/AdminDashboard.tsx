@@ -128,6 +128,8 @@ export function AdminDashboard({
 
   const [guestOfUserId, setGuestOfUserId] = useState<string>("");
   const [guestName, setGuestName] = useState<string>("");
+  const [guestPositionChoice, setGuestPositionChoice] = useState<string>("bottom");
+  const [guestSuccess, setGuestSuccess] = useState<string | null>(null);
   const [userFilter, setUserFilter] = useState<"all" | "admins" | "members" | "regular">("all");
 
   const selectedSignupsSchedule = signupsSchedule ?? activeSchedule;
@@ -194,9 +196,17 @@ export function AdminDashboard({
   const addGuestForUser = async () => {
     if (!activeScheduleId) return;
     if (!guestOfUserId || !guestName.trim()) return;
+    const guestOwner = signUps.find((s) => s.userId === guestOfUserId);
+    const guestOwnerLabel =
+      guestOwner?.user.name ?? guestOwner?.user.email ?? "the selected user";
     setError(null);
+    setGuestSuccess(null);
     setBusy(true);
     try {
+      const requestedPosition =
+        guestPositionChoice !== "bottom"
+          ? Number.parseInt(guestPositionChoice, 10)
+          : null;
       const resp = await fetch("/api/guests", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -204,6 +214,7 @@ export function AdminDashboard({
           scheduleId: activeScheduleId,
           guestName,
           guestOfUserId,
+          position: requestedPosition,
         }),
       });
 
@@ -215,7 +226,21 @@ export function AdminDashboard({
         return;
       }
 
+      const data = (await resp.json().catch(() => null)) as
+        | {
+            position?: number;
+            status?: "playing" | "waitlist";
+            guestName?: string;
+          }
+        | null;
+
       setGuestName("");
+      setGuestPositionChoice("bottom");
+      setGuestSuccess(
+        data?.position && data?.status
+          ? `Added ${data.guestName ?? guestName.trim()} at #${data.position} (${data.status}) as guest of ${guestOwnerLabel}.`
+          : `Added ${guestName.trim()} as guest of ${guestOwnerLabel}.`
+      );
       refresh();
     } finally {
       setBusy(false);
@@ -301,6 +326,21 @@ export function AdminDashboard({
   const waitlistCount = Math.max(0, combinedSignUps.length - waitlistStartIndex);
   const hasWaitlist = waitlistCount > 0;
   const guestCount = combinedSignUps.filter((item) => item.kind === "guest").length;
+  const maxGuestInsertPosition = combinedSignUps.length + 1;
+  const guestPositionLabel = (position: number) => {
+    if (position === 1) return "1 - Top";
+    if (position === waitlistStartIndex) return `${position} - Last playing spot`;
+    if (position === waitlistStartIndex + 1) return `${position} - Top of waitlist`;
+    if (position === maxGuestInsertPosition) return `${position} - Bottom`;
+    return String(position);
+  };
+  useEffect(() => {
+    if (guestPositionChoice === "bottom") return;
+    const selectedPosition = Number.parseInt(guestPositionChoice, 10);
+    if (!Number.isFinite(selectedPosition) || selectedPosition > maxGuestInsertPosition) {
+      setGuestPositionChoice("bottom");
+    }
+  }, [guestPositionChoice, maxGuestInsertPosition]);
 
   const filteredUsers = users.filter((u) => {
     const admin = isAdmin(u.roles);
@@ -622,13 +662,6 @@ export function AdminDashboard({
         </details>
       ) : null}
 
-      {mode === "signups" && activeScheduleId ? (
-        <AdminAddToSchedule
-          scheduleId={activeScheduleId}
-          signedUpUserIds={signUps.map((s) => s.userId)}
-        />
-      ) : null}
-
       {mode === "schedules" ? (
         <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between gap-3">
@@ -891,6 +924,7 @@ export function AdminDashboard({
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <select
               className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
+              aria-label="Schedule"
               value={selectedSignupsSchedule?.id ?? ""}
               onChange={(e) => {
                 const nextId = e.target.value;
@@ -1090,6 +1124,15 @@ export function AdminDashboard({
         </div>
       ) : null}
 
+      {mode === "signups" && activeScheduleId ? (
+        <AdminAddToSchedule
+          scheduleId={activeScheduleId}
+          signedUpUserIds={signUps.map((s) => s.userId)}
+          queueLength={combinedSignUps.length}
+          scheduleLimit={selectedSignupsSchedule?.limit ?? 15}
+        />
+      ) : null}
+
       {mode === "signups" ? (
         <div className="rounded-2xl border border-zinc-200 p-6 dark:border-slate-700 dark:bg-slate-800">
           <div className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Add guest</div>
@@ -1118,6 +1161,20 @@ export function AdminDashboard({
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                 />
+                <select
+                  className="h-11 min-w-40 rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100"
+                  value={guestPositionChoice}
+                  onChange={(e) => setGuestPositionChoice(e.target.value)}
+                  disabled={busy}
+                  aria-label="Add guest position"
+                >
+                  <option value="bottom">Bottom</option>
+                  {Array.from({ length: maxGuestInsertPosition }, (_, i) => i + 1).map((position) => (
+                    <option key={position} value={position}>
+                      {guestPositionLabel(position)}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
@@ -1131,6 +1188,11 @@ export function AdminDashboard({
           ) : (
             <div className="mt-3 text-sm text-zinc-600">No active schedule.</div>
           )}
+          {guestSuccess ? (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
+              {guestSuccess}
+            </div>
+          ) : null}
           {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
         </div>
       ) : null}
